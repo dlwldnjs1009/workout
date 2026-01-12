@@ -10,7 +10,7 @@ COPY gradle ./gradle
 COPY src ./src
 
 # 애플리케이션 빌드
-RUN gradle clean build -x test --no-daemon
+RUN gradle build -x test --no-daemon
 
 # Stage 2: 실행 환경
 FROM eclipse-temurin:21-jre-alpine

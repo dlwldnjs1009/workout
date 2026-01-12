@@ -5,6 +5,7 @@ services:
     image: mysql:8.0
     container_name: workout-mysql
     restart: always
+    platform: linux/arm64
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: workout
@@ -33,6 +34,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    platform: linux/arm64
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/workout?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
@@ -64,6 +66,7 @@ services:
     restart: always
     depends_on:
       - backend
+    platform: linux/arm64
     ports:
       - "80:80"
       # [MODIFIED] HTTPS 안 쓰면 일단 주석 추천
