@@ -1,0 +1,119 @@
+name: OCI 서버에 빌드 및 배포
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
+
+jobs:
+  build-and-push:
+    name: Docker 이미지 빌드
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: GitHub Container Registry 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 백엔드 메타데이터 추출
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 백엔드 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+
+      - name: 프론트엔드 메타데이터 추출
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 프론트엔드 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v5
+        with:
+          context: ./workout-frontend
+          file: ./workout-frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+
+  deploy:
+    name: OCI 서버에 배포
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: SSH를 통한 OCI 배포
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USERNAME }}
+          key: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            # 배포 디렉토리로 이동
+            cd /home/ubuntu/workout-app
+
+            # GitHub Container Registry 로그인
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # 최신 이미지 풀
+            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+
+            # 기존 컨테이너 중단 및 제거
+            docker-compose -f docker-compose.prod.yml down
+
+            # 새 컨테이너 시작
+            docker-compose -f docker-compose.prod.yml up -d
+
+            # 사용하지 않는 이미지 정리
+            docker image prune -af
+
+            # 컨테이너 상태 확인
+            docker-compose -f docker-compose.prod.yml ps
+
+            # 로그 확인
+            docker-compose -f docker-compose.prod.yml logs --tail=50
+
+      - name: 헬스체크
+        run: |
+          echo "서비스 시작 대기 중..."
+          sleep 30
+
+          # 서비스 응답 확인
+          curl -f http://${{ secrets.OCI_HOST }}/health || exit 1
+          curl -f http://${{ secrets.OCI_HOST }}/api/health || exit 1
+
+          echo "배포 성공!"

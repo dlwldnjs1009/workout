@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: workout-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: workout
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    # [MODIFIED] 운영: 외부 3306 오픈 금지 (필요하면 로컬만 바인딩)
+    ports:
+      - "127.0.0.1:3306:3306"
+    networks:
+      - workout-network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER} -p${MYSQL_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    image: ghcr.io/${GITHUB_USERNAME}/workout-backend:latest
+    container_name: workout-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/workout?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "false"
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: "86400000"
+
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: prod
+    # [MODIFIED] 운영: 8080 외부 오픈 안 해도 됨(프론트가 프록시)
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - workout-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    image: ghcr.io/${GITHUB_USERNAME}/workout-frontend:latest
+    container_name: workout-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      # [MODIFIED] HTTPS 안 쓰면 일단 주석 추천
+      - "443:443"
+    networks:
+      - workout-network
+    volumes:
+      # SSL 쓸 때만 인증서 넣기
+      - ./ssl:/etc/nginx/ssl:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health | grep -q OK"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+networks:
+  workout-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
