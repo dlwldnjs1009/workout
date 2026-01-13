@@ -54,7 +54,7 @@ services:
     networks:
       - workout-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health | grep -q OK"]
+      test: ["CMD-SHELL", "wget -q --server-response -O /dev/null http://localhost:8080/health 2>&1 | grep -q '200 OK'"]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -41,6 +41,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> {
+				auth.requestMatchers("/health").permitAll();
                 auth.requestMatchers("/api/auth/**").permitAll();
 
                 // H2 콘솔은 dev/local 프로파일에서만 허용
