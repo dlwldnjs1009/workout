@@ -44,6 +44,9 @@ public class SecurityConfig {
 				auth.requestMatchers("/health").permitAll();
                 auth.requestMatchers("/api/auth/**").permitAll();
 
+				auth.requestMatchers("/actuator/health").permitAll();
+				auth.requestMatchers("/actuator/prometheus").permitAll();
+
                 // H2 콘솔은 dev/local 프로파일에서만 허용
                 if (h2ConsoleEnabled && isDevProfile()) {
                     auth.requestMatchers("/h2-console/**").permitAll();
