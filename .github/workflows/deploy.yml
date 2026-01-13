@@ -52,7 +52,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ steps.meta-backend.outputs.tags }}
@@ -74,7 +74,7 @@ jobs:
           context: ./workout-frontend
           file: ./workout-frontend/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ steps.meta-frontend.outputs.tags }}
@@ -98,7 +98,8 @@ jobs:
             cd /home/ubuntu/workout-app
 
             # GitHub Container Registry 로그인
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker logout ghcr.io || true
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
             # 최신 이미지 풀
             docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
