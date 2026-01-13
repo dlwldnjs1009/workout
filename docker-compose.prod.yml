@@ -87,7 +87,6 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     environment:
-      # [Critical] Subpath Configuration
       - GF_SERVER_ROOT_URL=https://todayfit.site/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_SERVER_DOMAIN=todayfit.site
