@@ -127,6 +127,8 @@ jobs:
 
           # 서비스 응답 확인
           curl -f http://${{ secrets.OCI_HOST }}/health || exit 1
-          curl -f http://${{ secrets.OCI_HOST }}/api/health || exit 1
+          curl -f https://${{ secrets.OCI_HOST }}/health || exit 1
+          curl -f https://${{ secrets.OCI_HOST }}/api/actuator/health || exit 1
+  
 
           echo "배포 성공!"
