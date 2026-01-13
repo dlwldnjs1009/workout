@@ -69,11 +69,8 @@ services:
     platform: linux/arm64
     ports:
       - "80:80"
-      - "443:443"
     networks:
       - workout-network
-    volumes:
-      - ./ssl:/etc/nginx/ssl:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/health | grep -q OK"]
       interval: 30s
