@@ -86,10 +86,14 @@ services:
     restart: always
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning.yaml:/etc/grafana/provisioning/dashboards/todayfit.yaml
     environment:
       - GF_SERVER_ROOT_URL=https://todayfit.site/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_SERVER_DOMAIN=todayfit.site
+      - GF_SERVER_PROTOCOL=http
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     networks:
       - workout-network
