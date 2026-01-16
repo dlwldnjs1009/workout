@@ -13,7 +13,7 @@ COPY src ./src
 RUN gradle build -x test --no-daemon
 
 # Stage 2: 실행 환경
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jdk-alpine
 WORKDIR /app
 
 # 보안을 위한 non-root 사용자 생성
