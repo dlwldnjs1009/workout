@@ -23,6 +23,19 @@ public class DietSessionController {
         return ResponseEntity.ok(dietSessionService.getAllDietSessions(username));
     }
 
+    /**
+     * 특정 날짜의 식단 조회 (단건 조회로 네트워크/DB 부하 감소)
+     * 미존재 시 204 No Content 반환 (null payload 방지)
+     */
+    @GetMapping("/by-date")
+    public ResponseEntity<DietSessionDTO> getDietSessionByDate(
+            @CurrentUsername String username,
+            @RequestParam String date) {
+        return dietSessionService.getDietSessionByDate(username, date)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/today")
     public ResponseEntity<DietDashboardDTO> getTodayDietSummary(
             @CurrentUsername String username,

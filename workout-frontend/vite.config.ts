@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  // 프로덕션에서만 console.log 제거 (개발 모드에서는 유지)
+  esbuild: mode === 'production' ? { drop: ['console', 'debugger'] } : {},
   server: {
     port: 3000,
     proxy: {
@@ -14,45 +16,44 @@ export default defineConfig({
     },
   },
   build: {
-    // 청크 크기 경고 임계값 (kB)
-    chunkSizeWarningLimit: 500,
+    // 청크 크기 경고 임계값 상향 (kB)
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // 벤더 코드를 별도 청크로 분리하여 캐시 효율성 향상
+        // 벤더 코드 분리 (의존성 순환 방지를 위해 단순화)
         manualChunks: {
-          // React 코어 라이브러리
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // MUI 라이브러리 (가장 큼)
-          'mui-vendor': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
-          // 차트 라이브러리 (무거움)
-          'chart-vendor': ['recharts'],
-          // 폼 관련 라이브러리
-          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          // 애니메이션 라이브러리
-          'animation-vendor': ['framer-motion'],
-          // 유틸리티
-          'utils-vendor': ['date-fns', 'axios', 'zustand'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          'vendor-charts': ['recharts'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'vendor-utils': ['date-fns', 'axios', 'zustand'],
         },
       },
     },
-    // 소스맵 생성 (프로덕션 디버깅용, 필요시 false로 변경)
+    // 소스맵 비활성화 (프로덕션 번들 크기 감소)
     sourcemap: false,
-    // CSS 코드 분할
+    // CSS 코드 분할 활성화
     cssCodeSplit: true,
-    // 최소화 설정
+    // esbuild minify (빠르고 효율적)
     minify: 'esbuild',
-    // 타겟 브라우저
+    // 타겟 브라우저 (최신 브라우저 타겟팅)
     target: 'es2020',
   },
-  // 의존성 최적화
+  // 의존성 사전 번들링 최적화
   optimizeDeps: {
     include: [
       'react',
       'react-dom',
       'react-router-dom',
       '@mui/material',
+      '@mui/icons-material',
       '@emotion/react',
       '@emotion/styled',
+      'zustand',
+      'axios',
     ],
+    // 제외할 의존성 (필요시 추가)
+    exclude: [],
   },
-});
+}));

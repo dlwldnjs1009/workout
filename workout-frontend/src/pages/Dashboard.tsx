@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useState, useMemo, lazy, Suspense, memo, useCallback } from 'react';
 import { Grid, Typography, Box, Button, Stack, useTheme, useMediaQuery, Skeleton } from '@mui/material';
 import { motion } from 'framer-motion';
 import { workoutService } from '../services/workoutService';
@@ -184,7 +184,7 @@ interface DashboardHeaderProps {
   onLogWorkout: () => void;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({ greeting, username, isMobile, onLogWorkout }) => (
+const DashboardHeader = memo<DashboardHeaderProps>(({ greeting, username, isMobile, onLogWorkout }) => (
   <motion.div variants={greetingVariants}>
     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 4 }}>
       <Box>
@@ -236,14 +236,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ greeting, username, i
       </Box>
     </Box>
   </motion.div>
-);
+));
+DashboardHeader.displayName = 'DashboardHeader';
 
 interface VolumeSectionProps {
   totalVolume: number;
   volumeChartData: Array<{ date: string; volume: number }>;
 }
 
-const VolumeSection: React.FC<VolumeSectionProps> = ({ totalVolume, volumeChartData }) => (
+const VolumeSection = memo<VolumeSectionProps>(({ totalVolume, volumeChartData }) => (
   <Grid size={{ xs: 12, md: 7, lg: 8 }} sx={{ display: 'flex', flexDirection: 'column' }}>
     <motion.div variants={itemVariants}>
       <Box sx={{ mb: 1 }}>
@@ -279,7 +280,8 @@ const VolumeSection: React.FC<VolumeSectionProps> = ({ totalVolume, volumeChartD
       </TossCard>
     </motion.div>
   </Grid>
-);
+));
+VolumeSection.displayName = 'VolumeSection';
 
 interface DietSectionProps {
   dietSummary: DietDashboardData;
@@ -287,7 +289,7 @@ interface DietSectionProps {
   onNavigate: () => void;
 }
 
-const DietSection: React.FC<DietSectionProps> = ({ dietSummary, isDark, onNavigate }) => (
+const DietSection = memo<DietSectionProps>(({ dietSummary, isDark, onNavigate }) => (
   <motion.div variants={itemVariants} style={{ flex: 1, display: 'flex' }}>
     <TossCard onClick={onNavigate} sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -353,14 +355,15 @@ const DietSection: React.FC<DietSectionProps> = ({ dietSummary, isDark, onNaviga
       )}
     </TossCard>
   </motion.div>
-);
+));
+DietSection.displayName = 'DietSection';
 
 interface StatsGridProps {
   totalWorkouts: number;
   monthlyWorkouts: number;
 }
 
-const StatsGrid: React.FC<StatsGridProps> = ({ totalWorkouts, monthlyWorkouts }) => (
+const StatsGrid = memo<StatsGridProps>(({ totalWorkouts, monthlyWorkouts }) => (
   <motion.div variants={itemVariants}>
     <Grid container spacing={2}>
       <Grid size={{ xs: 6 }}>
@@ -383,7 +386,8 @@ const StatsGrid: React.FC<StatsGridProps> = ({ totalWorkouts, monthlyWorkouts })
       </Grid>
     </Grid>
   </motion.div>
-);
+));
+StatsGrid.displayName = 'StatsGrid';
 
 interface RecentActivityListProps {
   sessions: WorkoutDashboardData['recentSessions'];
@@ -392,7 +396,7 @@ interface RecentActivityListProps {
   onLogWorkout: () => void;
 }
 
-const RecentActivityList: React.FC<RecentActivityListProps> = ({ sessions, isDark, onNavigate, onLogWorkout }) => (
+const RecentActivityList = memo<RecentActivityListProps>(({ sessions, isDark, onNavigate, onLogWorkout }) => (
   <motion.div variants={itemVariants}>
     <Box sx={{ mt: 5 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -441,7 +445,15 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ sessions, isDar
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05, duration: 0.3 }}
             >
-              <TossCard onClick={() => onNavigate(`/sessions/${session.id}`)} sx={{ p: 2.5 }}>
+              <TossCard
+                onClick={() => onNavigate(`/sessions/${session.id}`)}
+                sx={{
+                  p: 2.5,
+                  // content-visibility로 화면 밖 항목 렌더링 최적화
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: '0 80px',
+                }}
+              >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Box sx={{
@@ -480,7 +492,8 @@ const RecentActivityList: React.FC<RecentActivityListProps> = ({ sessions, isDar
       )}
     </Box>
   </motion.div>
-);
+));
+RecentActivityList.displayName = 'RecentActivityList';
 
 // Main Dashboard Component
 
@@ -504,13 +517,14 @@ const Dashboard = () => {
 
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
 
-  const handleHeatmapClick = (date: string) => {
+  // 콜백 메모이제이션으로 불필요한 리렌더 방지
+  const handleHeatmapClick = useCallback((date: string) => {
     setSelectedDate(date);
     setBottomSheetOpen(true);
-  };
+  }, [setSelectedDate]);
 
-  const handleLogWorkout = () => navigate('/log-workout');
-  const handleNavigate = (path: string) => navigate(path);
+  const handleLogWorkout = useCallback(() => navigate('/log-workout'), [navigate]);
+  const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
   if (loading || !dashboardData || !dietSummary) {
     return <DashboardSkeleton />;

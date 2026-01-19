@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Box, Typography, Paper, CircularProgress, IconButton, Stack, useTheme, Snackbar, Alert } from '@mui/material';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth } from 'date-fns';
 import { workoutService } from '../services/workoutService';
@@ -12,6 +12,64 @@ import EmptyState from '../components/EmptyState';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+// 세션 아이템 컴포넌트 분리 및 메모이제이션
+interface SessionItemProps {
+  session: WorkoutSession;
+  onNavigate: (id: number | undefined) => void;
+  onDelete: (e: React.MouseEvent, id: number | undefined) => void;
+  dividerColor: string;
+}
+
+const SessionItem = memo(({ session, onNavigate, onDelete, dividerColor }: SessionItemProps) => {
+  // useMemo로 운동 종목 수 캐싱
+  const exerciseCount = useMemo(
+    () => new Set(session.exercisesPerformed.map(e => e.exerciseName)).size,
+    [session.exercisesPerformed]
+  );
+
+  return (
+    <Paper
+      onClick={() => onNavigate(session.id)}
+      elevation={0}
+      sx={{
+        p: 2.5,
+        borderRadius: 4,
+        bgcolor: 'background.paper',
+        border: `1px solid ${dividerColor}`,
+        cursor: 'pointer',
+        transition: 'transform 0.2s',
+        // content-visibility로 화면 밖 항목 렌더링 최적화
+        contentVisibility: 'auto',
+        containIntrinsicSize: '0 80px',
+        '&:hover': { transform: 'scale(1.01)', borderColor: 'primary.main' }
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h6" fontWeight="700" sx={{ mb: 0.5 }}>
+            {session.notes || '운동 세션'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" fontWeight="500">
+            {session.duration}분 · {exerciseCount}개 종목
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={(e) => onDelete(e, session.id)}
+            sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+          <ArrowForwardIosIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+        </Box>
+      </Box>
+    </Paper>
+  );
+});
+SessionItem.displayName = 'SessionItem';
+
 const WorkoutHistory = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
@@ -24,7 +82,7 @@ const WorkoutHistory = () => {
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
       const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
@@ -36,20 +94,25 @@ const WorkoutHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentDate]);
 
   useEffect(() => {
     fetchSessions();
-  }, [currentDate]);
+  }, [fetchSessions]);
 
-  const handlePrevMonth = () => setCurrentDate(prev => subMonths(prev, 1));
-  const handleNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
+  const handlePrevMonth = useCallback(() => setCurrentDate(prev => subMonths(prev, 1)), []);
+  const handleNextMonth = useCallback(() => setCurrentDate(prev => addMonths(prev, 1)), []);
 
-  const openDeleteConfirm = (e: React.MouseEvent, id: number | undefined) => {
+  // 콜백 메모이제이션
+  const openDeleteConfirm = useCallback((e: React.MouseEvent, id: number | undefined) => {
     e.stopPropagation();
     setIdToConfirm(id ?? null);
     setConfirmOpen(true);
-  };
+  }, []);
+
+  const handleNavigateToSession = useCallback((id: number | undefined) => {
+    if (id) navigate(`/sessions/${id}`);
+  }, [navigate]);
 
   const handleDeleteSession = async () => {
     if (!idToConfirm) return;
@@ -120,42 +183,13 @@ const WorkoutHistory = () => {
                     </Typography>
                     <Stack spacing={2}>
                         {daySessions.map(session => (
-                            <Paper 
-                                key={session.id} 
-                                onClick={() => navigate(`/sessions/${session.id}`)}
-                                elevation={0}
-                                sx={{ 
-                                    p: 2.5, 
-                                    borderRadius: 4, 
-                                    bgcolor: 'background.paper',
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    cursor: 'pointer',
-                                    transition: 'transform 0.2s',
-                                    '&:hover': { transform: 'scale(1.01)', borderColor: 'primary.main' }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Box sx={{ flex: 1 }}>
-                                        <Typography variant="h6" fontWeight="700" sx={{ mb: 0.5 }}>
-                                            {session.notes || '운동 세션'}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" fontWeight="500">
-                                            {session.duration}분 · {new Set(session.exercisesPerformed.map(e => e.exerciseName)).size}개 종목
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                        <IconButton 
-                                            size="small" 
-                                            color="error" 
-                                            onClick={(e) => openDeleteConfirm(e, session.id)}
-                                            sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
-                                        >
-                                            <DeleteOutlineIcon fontSize="small" />
-                                        </IconButton>
-                                        <ArrowForwardIosIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                                    </Box>
-                                </Box>
-                            </Paper>
+                            <SessionItem
+                                key={session.id}
+                                session={session}
+                                onNavigate={handleNavigateToSession}
+                                onDelete={openDeleteConfirm}
+                                dividerColor={theme.palette.divider}
+                            />
                         ))}
                     </Stack>
                 </Box>
