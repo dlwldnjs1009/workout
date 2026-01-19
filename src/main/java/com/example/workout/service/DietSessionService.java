@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -143,6 +144,22 @@ public class DietSessionService {
         DietSession dietSession = dietSessionRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new RuntimeException("Diet session not found"));
         dietSessionRepository.delete(dietSession);
+    }
+
+    /**
+     * 특정 날짜의 식단 조회 (단건 조회로 최적화)
+     * @throws IllegalArgumentException 잘못된 날짜 형식인 경우
+     */
+    public Optional<DietSessionDTO> getDietSessionByDate(String username, String dateStr) {
+        User user = getUser(username);
+        java.time.LocalDate date;
+        try {
+            date = java.time.LocalDate.parse(dateStr);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("잘못된 날짜 형식입니다: " + dateStr, e);
+        }
+        return dietSessionRepository.findByUserIdAndDate(user.getId(), date)
+                .map(dietSessionMapper::toDTO);
     }
 
     private User getUser(String username) {

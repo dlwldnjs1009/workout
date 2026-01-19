@@ -16,10 +16,12 @@ import java.util.List;
 @Repository
 public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, Long> {
 
-    // 페이지네이션 적용된 세션 조회
+    // 페이지네이션 적용된 세션 조회 (N+1 방지: exercisesPerformed fetch join)
+    @EntityGraph(attributePaths = {"exercisesPerformed", "exercisesPerformed.exerciseType"})
     Page<WorkoutSession> findByUserIdOrderByDateDesc(Long userId, Pageable pageable);
 
-    // 최근 N개 세션 조회 (대시보드용, 컬렉션 fetch join + 페이지네이션 회피)
+    // 최근 N개 세션 조회 (대시보드용, N+1 방지)
+    @EntityGraph(attributePaths = {"exercisesPerformed", "exercisesPerformed.exerciseType"})
     @Query("SELECT s FROM WorkoutSession s " +
            "WHERE s.user.id = :userId " +
            "ORDER BY s.date DESC")

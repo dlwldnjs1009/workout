@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useMemo, memo, useCallback} from 'react';
 import {type FieldArrayWithId, useFieldArray, useForm, type UseFormRegister} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {z} from 'zod';
@@ -50,25 +50,45 @@ interface MealSectionProps {
     currentEntries: DietSessionFormData['foodEntries'];
 }
 
-const MealSection = ({
+// 식사 타입별 라벨 (컴포넌트 외부에 정의하여 재생성 방지)
+const MEAL_LABELS: Record<MealType, string> = {
+    BREAKFAST: '아침',
+    LUNCH: '점심',
+    DINNER: '저녁',
+    SNACK: '간식'
+};
+
+const MealSection = memo(({
                          mealType,
                          register,
                          remove,
                          fields,
                          currentEntries
                      }: MealSectionProps) => {
-    const mealFields = fields
-        .map((field, index) => ({...field, index}))
-        .filter((field) => field.mealType === mealType);
+    // useMemo로 필터링된 필드 캐싱
+    const mealFields = useMemo(() =>
+        fields
+            .map((field, index) => ({...field, index}))
+            .filter((field) => field.mealType === mealType),
+        [fields, mealType]
+    );
 
-    const currentMealValues = currentEntries.filter(entry => entry.mealType === mealType);
-    const totalCalories = currentMealValues.reduce((sum, item) => sum + (Number(item.calories) || 0), 0);
-    const totalCarbs = currentMealValues.reduce((sum, item) => sum + (Number(item.carbs) || 0), 0);
-    const totalProtein = currentMealValues.reduce((sum, item) => sum + (Number(item.protein) || 0), 0);
-    const totalFat = currentMealValues.reduce((sum, item) => sum + (Number(item.fat) || 0), 0);
+    // 단일 reduce로 모든 영양소 합계 계산 (4회 반복 -> 1회)
+    const mealTotals = useMemo(() => {
+        const currentMealValues = currentEntries.filter(entry => entry.mealType === mealType);
+        return currentMealValues.reduce(
+            (acc, item) => ({
+                calories: acc.calories + (Number(item.calories) || 0),
+                carbs: acc.carbs + (Number(item.carbs) || 0),
+                protein: acc.protein + (Number(item.protein) || 0),
+                fat: acc.fat + (Number(item.fat) || 0),
+            }),
+            { calories: 0, carbs: 0, protein: 0, fat: 0 }
+        );
+    }, [currentEntries, mealType]);
 
-
-    const handleNumberInput = (e: React.FormEvent<HTMLInputElement>, max: number) => {
+    // 핸들러 메모이제이션
+    const handleNumberInput = useCallback((e: React.FormEvent<HTMLInputElement>, max: number) => {
         const target = e.currentTarget;
         const value = parseFloat(target.value);
 
@@ -77,14 +97,16 @@ const MealSection = ({
         } else if (value < 0) {
             target.value = "0";
         }
-    };
+    }, []);
+
+    const mealLabel = MEAL_LABELS[mealType];
 
     return (
         <Box sx={{mb: 4}}>
             <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, px: 0.5}}>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1.5}}>
                     <Chip
-                        label={mealType === 'BREAKFAST' ? '아침' : mealType === 'LUNCH' ? '점심' : mealType === 'DINNER' ? '저녁' : '간식'}
+                        label={mealLabel}
                         sx={{
                             borderRadius: '8px',
                             fontWeight: 700,
@@ -94,15 +116,15 @@ const MealSection = ({
                             px: 1
                         }}
                     />
-                    {totalCalories > 0 && (
+                    {mealTotals.calories > 0 && (
                         <Box sx={{display: 'flex', gap: 1, alignItems: 'baseline'}}>
                             <Typography variant="body2" color="text.primary" fontWeight={700}>
-                                {totalCalories.toLocaleString()} <Typography component="span" variant="caption"
+                                {mealTotals.calories.toLocaleString()} <Typography component="span" variant="caption"
                                                                              color="text.secondary">kcal</Typography>
                             </Typography>
                             <Typography variant="caption" color="text.secondary"
                                         sx={{display: {xs: 'none', sm: 'inline-block'}, ml: 1}}>
-                                탄 {totalCarbs}g · 단 {totalProtein}g · 지 {totalFat}g
+                                탄 {mealTotals.carbs}g · 단 {mealTotals.protein}g · 지 {mealTotals.fat}g
                             </Typography>
                         </Box>
                     )}
@@ -324,7 +346,8 @@ const MealSection = ({
             )}
         </Box>
     );
-};
+});
+MealSection.displayName = 'MealSection';
 
 const DietLog = () => {
     const [loading, setLoading] = useState(false);
@@ -349,17 +372,28 @@ const DietLog = () => {
     const watchDate = watch('date');
     const foodEntries = watch('foodEntries');
 
-    const totalCalories = foodEntries?.reduce((sum, item) => sum + (Number(item.calories) || 0), 0) || 0;
-    const totalCarbs = foodEntries?.reduce((sum, item) => sum + (Number(item.carbs) || 0), 0) || 0;
-    const totalProtein = foodEntries?.reduce((sum, item) => sum + (Number(item.protein) || 0), 0) || 0;
-    const totalFat = foodEntries?.reduce((sum, item) => sum + (Number(item.fat) || 0), 0) || 0;
+    // 단일 reduce로 모든 영양소 합계 계산 (4회 반복 -> 1회, useMemo로 캐싱)
+    const totals = useMemo(() => {
+        if (!foodEntries || foodEntries.length === 0) {
+            return { calories: 0, carbs: 0, protein: 0, fat: 0 };
+        }
+        return foodEntries.reduce(
+            (acc, item) => ({
+                calories: acc.calories + (Number(item.calories) || 0),
+                carbs: acc.carbs + (Number(item.carbs) || 0),
+                protein: acc.protein + (Number(item.protein) || 0),
+                fat: acc.fat + (Number(item.fat) || 0),
+            }),
+            { calories: 0, carbs: 0, protein: 0, fat: 0 }
+        );
+    }, [foodEntries]);
 
     useEffect(() => {
         const fetchSession = async () => {
             setLoading(true);
             try {
-                const sessions = await dietService.getDietSessions();
-                const sessionForDate = sessions.find(s => s.date === watchDate);
+                // 전체 조회 대신 날짜별 단건 조회로 최적화 (네트워크/DB 부하 감소)
+                const sessionForDate = await dietService.getDietSessionByDate(watchDate);
 
                 if (sessionForDate) {
                     reset({
@@ -447,7 +481,7 @@ const DietLog = () => {
                             <Typography variant="caption" color="text.secondary" fontWeight={600}>총 섭취 칼로리</Typography>
                             <Typography variant="h3" fontWeight="800"
                                         sx={{letterSpacing: '-1px', color: 'text.primary'}}>
-                                {totalCalories.toLocaleString()} <Typography component="span" variant="h6"
+                                {totals.calories.toLocaleString()} <Typography component="span" variant="h6"
                                                                              color="text.secondary"
                                                                              fontWeight={600}>kcal</Typography>
                             </Typography>
@@ -466,17 +500,17 @@ const DietLog = () => {
                             <Box sx={{textAlign: 'center'}}>
                                 <Typography variant="caption" color="text.secondary" display="block"
                                             mb={0.5}>탄수화물</Typography>
-                                <Typography variant="h6" fontWeight="700">{totalCarbs}g</Typography>
+                                <Typography variant="h6" fontWeight="700">{totals.carbs}g</Typography>
                             </Box>
                             <Box sx={{textAlign: 'center'}}>
                                 <Typography variant="caption" color="text.secondary" display="block"
                                             mb={0.5}>단백질</Typography>
-                                <Typography variant="h6" fontWeight="700">{totalProtein}g</Typography>
+                                <Typography variant="h6" fontWeight="700">{totals.protein}g</Typography>
                             </Box>
                             <Box sx={{textAlign: 'center'}}>
                                 <Typography variant="caption" color="text.secondary" display="block"
                                             mb={0.5}>지방</Typography>
-                                <Typography variant="h6" fontWeight="700">{totalFat}g</Typography>
+                                <Typography variant="h6" fontWeight="700">{totals.fat}g</Typography>
                             </Box>
                         </Box>
                     </Box>
@@ -531,7 +565,7 @@ const DietLog = () => {
                                         }
                                     }}
                                 >
-                                    {type === 'BREAKFAST' ? '아침' : type === 'LUNCH' ? '점심' : type === 'DINNER' ? '저녁' : '간식'} 추가
+                                    {MEAL_LABELS[type]} 추가
                                 </Button>
                             ))}
                         </Stack>
@@ -549,7 +583,7 @@ const DietLog = () => {
                                     size="small"
                                     sx={{mb: 1, display: {md: 'none'}, borderRadius: 1}}
                                 >
-                                    {type === 'BREAKFAST' ? '아침' : type === 'LUNCH' ? '점심' : type === 'DINNER' ? '저녁' : '간식'} 추가
+                                    {MEAL_LABELS[type]} 추가
                                 </Button>
                             </Box>
                             <MealSection

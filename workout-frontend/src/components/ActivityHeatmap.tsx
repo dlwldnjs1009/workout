@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, memo } from 'react';
+import { useRef, useEffect, useMemo, memo, useCallback } from 'react';
 import { Box, Tooltip, Typography, useTheme } from '@mui/material';
 import { format, addDays, parseISO, getDay } from 'date-fns';
 
@@ -7,6 +7,22 @@ interface ActivityHeatmapProps {
   levels: number[];
   onClick?: (date: string, level: number) => void;
 }
+
+// 색상 맵을 컴포넌트 외부로 이동 (재생성 방지)
+const COLOR_MAP = {
+  light: {
+    0: '#f2f4f6',
+    1: '#E5F0FF',
+    2: '#3182F6',
+    3: '#1b64da',
+  },
+  dark: {
+    0: 'rgba(255, 255, 255, 0.08)',
+    1: 'rgba(49, 130, 246, 0.3)',
+    2: '#3182F6',
+    3: '#1b64da',
+  },
+} as const;
 
 const ActivityHeatmap = ({ startDate, levels, onClick }: ActivityHeatmapProps) => {
   const theme = useTheme();
@@ -36,16 +52,11 @@ const ActivityHeatmap = ({ startDate, levels, onClick }: ActivityHeatmapProps) =
     }
   }, []);
 
-  const getColor = (level: number) => {
-    const isDark = theme.palette.mode === 'dark';
-    switch (level) {
-      case 0: return isDark ? 'rgba(255, 255, 255, 0.08)' : '#f2f4f6';
-      case 1: return isDark ? 'rgba(49, 130, 246, 0.3)' : '#E5F0FF';
-      case 2: return '#3182F6';
-      case 3: return '#1b64da';
-      default: return isDark ? 'rgba(255, 255, 255, 0.08)' : '#f2f4f6';
-    }
-  };
+  // 색상 계산 함수 메모이제이션
+  const getColor = useCallback((level: number) => {
+    const mode = theme.palette.mode;
+    return COLOR_MAP[mode][level as keyof typeof COLOR_MAP.light] || COLOR_MAP[mode][0];
+  }, [theme.palette.mode]);
 
   return (
     <Box 
