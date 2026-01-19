@@ -1,6 +1,5 @@
 package com.example.workout.repository;
 
-import com.example.workout.dto.DashboardStatsDTO;
 import com.example.workout.entity.WorkoutSession;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,19 +26,7 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
            "ORDER BY s.date DESC")
     List<WorkoutSession> findRecentByUserId(@Param("userId") Long userId, Pageable pageable);
 
-    // 대시보드 통계 집계 (복잡한 JPQL 대신 개별 쿼리 조합)
-    default DashboardStatsDTO getDashboardStats(Long userId, LocalDateTime monthStart) {
-        Double totalVolume = sumTotalVolumeByUserId(userId);
-        if (totalVolume == null) {
-            totalVolume = 0.0;
-        }
-        long totalWorkouts = countByUserId(userId);
-        long monthlyWorkouts = countByUserIdAndDateAfter(userId, monthStart);
-
-        return new DashboardStatsDTO(totalWorkouts, totalVolume, monthlyWorkouts);
-    }
-
-    // 볼륨 집계 (기존 유지, 대시보드 통계 쿼리 fallback용)
+    // 볼륨 집계
     @Query("SELECT COALESCE(SUM(r.weight * r.reps), 0) FROM WorkoutSession s JOIN s.exercisesPerformed r WHERE s.user.id = :userId")
     Double sumTotalVolumeByUserId(@Param("userId") Long userId);
 
