@@ -142,7 +142,8 @@ public class WorkoutSessionService {
             .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         // 통계 쿼리 (개별 쿼리 사용 - 복잡한 집계 쿼리보다 안정적)
-        Double totalVolume = getTotalVolumeByUsername(username);
+        // 같은 클래스 내 호출은 @Cacheable 프록시를 우회하므로 직접 호출
+        Double totalVolume = sessionRepository.sumTotalVolumeByUserId(user.getId());
         if (totalVolume == null) totalVolume = 0.0;
         long totalWorkouts = sessionRepository.countByUserId(user.getId());
         long monthlyWorkouts = sessionRepository.countByUserIdAndDateAfter(user.getId(), startOfMonth);
