@@ -10,8 +10,6 @@ import com.example.workout.exception.UserNotFoundException;
 import com.example.workout.mapper.WorkoutSessionMapper;
 import com.example.workout.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,7 +49,6 @@ public class WorkoutSessionService {
 	}
 
     @Transactional
-    @CacheEvict(value = "userTotalVolume", key = "#username")
     public WorkoutSessionDTO createSession(String username, WorkoutSessionDTO dto) {
         User user = getUser(username);
 
@@ -142,7 +139,8 @@ public class WorkoutSessionService {
             .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         // 통계 쿼리 (개별 쿼리 사용 - 복잡한 집계 쿼리보다 안정적)
-        Double totalVolume = getTotalVolumeByUsername(username);
+        // 같은 클래스 내 호출은 @Cacheable 프록시를 우회하므로 직접 호출
+        Double totalVolume = sessionRepository.sumTotalVolumeByUserId(user.getId());
         if (totalVolume == null) totalVolume = 0.0;
         long totalWorkouts = sessionRepository.countByUserId(user.getId());
         long monthlyWorkouts = sessionRepository.countByUserIdAndDateAfter(user.getId(), startOfMonth);
@@ -154,12 +152,20 @@ public class WorkoutSessionService {
             .map(sessionMapper::toDTO)
             .collect(Collectors.toList());
 
-        // 볼륨 차트 데이터 (DB에서 집계)
+        // 볼륨 차트 데이터 (DB에서 집계, Native Query로 LIMIT 10 적용)
         List<Object[]> volumeData = sessionRepository
-            .findRecentSessionVolumes(user.getId(), PageRequest.of(0, 10));
+            .findRecentSessionVolumes(user.getId());
         List<VolumeDataPointDTO> volumeChartData = new ArrayList<>();
         for (Object[] row : volumeData) {
-            LocalDateTime date = (LocalDateTime) row[0];
+            // Native Query는 java.sql.Timestamp 반환
+            LocalDateTime date;
+            if (row[0] instanceof LocalDateTime) {
+                date = (LocalDateTime) row[0];
+            } else if (row[0] instanceof java.sql.Timestamp) {
+                date = ((java.sql.Timestamp) row[0]).toLocalDateTime();
+            } else {
+                continue;
+            }
             Double volume = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
             volumeChartData.add(VolumeDataPointDTO.builder()
                 .date(date.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId)
@@ -212,25 +218,11 @@ public class WorkoutSessionService {
         return sessionMapper.toDTO(session);
     }
 
-        @Transactional
-    @CacheEvict(value = "userTotalVolume", key = "#username")
+    @Transactional
     public void deleteSession(Long id, String username) {
         WorkoutSession session = sessionRepository.findByIdAndUser_Username(id, username)
             .orElseThrow(() -> new ResourceNotFoundException("운동 세션을 찾을 수 없거나 접근 권한이 없습니다."));
         sessionRepository.delete(session);
-    }
-
-    /**
-     * 사용자 총 볼륨 조회 (1시간 캐싱)
-     * Dashboard에서 반복 호출되므로 캐시로 DB 부하 감소
-     *
-     * @CacheEvict와 키 정합성 맞추기 위해 username 기반으로 통일
-     */
-    @Transactional(readOnly = true)
-    @Cacheable(value = "userTotalVolume", key = "#username")
-    public Double getTotalVolumeByUsername(String username) {
-        User user = getUser(username);
-        return sessionRepository.sumTotalVolumeByUserId(user.getId());
     }
 
 }
