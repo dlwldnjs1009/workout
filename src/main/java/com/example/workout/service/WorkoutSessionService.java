@@ -155,12 +155,20 @@ public class WorkoutSessionService {
             .map(sessionMapper::toDTO)
             .collect(Collectors.toList());
 
-        // 볼륨 차트 데이터 (DB에서 집계)
+        // 볼륨 차트 데이터 (DB에서 집계, Native Query로 LIMIT 10 적용)
         List<Object[]> volumeData = sessionRepository
-            .findRecentSessionVolumes(user.getId(), PageRequest.of(0, 10));
+            .findRecentSessionVolumes(user.getId());
         List<VolumeDataPointDTO> volumeChartData = new ArrayList<>();
         for (Object[] row : volumeData) {
-            LocalDateTime date = (LocalDateTime) row[0];
+            // Native Query는 java.sql.Timestamp 반환
+            LocalDateTime date;
+            if (row[0] instanceof LocalDateTime) {
+                date = (LocalDateTime) row[0];
+            } else if (row[0] instanceof java.sql.Timestamp) {
+                date = ((java.sql.Timestamp) row[0]).toLocalDateTime();
+            } else {
+                continue;
+            }
             Double volume = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
             volumeChartData.add(VolumeDataPointDTO.builder()
                 .date(date.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId)

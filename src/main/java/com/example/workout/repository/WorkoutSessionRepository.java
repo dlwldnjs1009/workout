@@ -56,13 +56,15 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
            "GROUP BY CAST(s.date AS LocalDate)")
     List<Object[]> countSessionsByDate(@Param("userId") Long userId, @Param("startDate") LocalDateTime startDate);
 
-    // 볼륨 차트용 최근 세션 데이터 (스트림 처리 → DB 처리)
-    @Query("SELECT s.date, COALESCE(SUM(r.weight * r.reps), 0) " +
-           "FROM WorkoutSession s LEFT JOIN s.exercisesPerformed r " +
-           "WHERE s.user.id = :userId " +
+    // 볼륨 차트용 최근 세션 데이터 (Native Query로 LIMIT 직접 적용)
+    // Note: JPQL + collection JOIN + Pageable은 Hibernate 6에서 에러 발생
+    @Query(value = "SELECT s.date, COALESCE(SUM(r.weight * r.reps), 0) " +
+           "FROM workout_sessions s LEFT JOIN exercise_records r ON s.id = r.session_id " +
+           "WHERE s.user_id = :userId " +
            "GROUP BY s.id, s.date " +
-           "ORDER BY s.date DESC")
-    List<Object[]> findRecentSessionVolumes(@Param("userId") Long userId, Pageable pageable);
+           "ORDER BY s.date DESC " +
+           "LIMIT 10", nativeQuery = true)
+    List<Object[]> findRecentSessionVolumes(@Param("userId") Long userId);
 
     @EntityGraph(attributePaths = {"exercisesPerformed", "exercisesPerformed.exerciseType"})
     java.util.Optional<WorkoutSession> findByIdAndUser_Username(Long id, String username);
