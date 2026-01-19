@@ -10,6 +10,8 @@ import com.example.workout.exception.UserNotFoundException;
 import com.example.workout.mapper.WorkoutSessionMapper;
 import com.example.workout.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +51,7 @@ public class WorkoutSessionService {
 	}
 
     @Transactional
+    @CacheEvict(value = "userTotalVolume", key = "#username")
     public WorkoutSessionDTO createSession(String username, WorkoutSessionDTO dto) {
         User user = getUser(username);
 
@@ -139,7 +142,7 @@ public class WorkoutSessionService {
             .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         // 통계 쿼리 (개별 쿼리 사용 - 복잡한 집계 쿼리보다 안정적)
-        Double totalVolume = sessionRepository.sumTotalVolumeByUserId(user.getId());
+        Double totalVolume = getTotalVolumeByUsername(username);
         if (totalVolume == null) totalVolume = 0.0;
         long totalWorkouts = sessionRepository.countByUserId(user.getId());
         long monthlyWorkouts = sessionRepository.countByUserIdAndDateAfter(user.getId(), startOfMonth);
@@ -210,10 +213,24 @@ public class WorkoutSessionService {
     }
 
         @Transactional
+    @CacheEvict(value = "userTotalVolume", key = "#username")
     public void deleteSession(Long id, String username) {
         WorkoutSession session = sessionRepository.findByIdAndUser_Username(id, username)
             .orElseThrow(() -> new ResourceNotFoundException("운동 세션을 찾을 수 없거나 접근 권한이 없습니다."));
         sessionRepository.delete(session);
+    }
+
+    /**
+     * 사용자 총 볼륨 조회 (1시간 캐싱)
+     * Dashboard에서 반복 호출되므로 캐시로 DB 부하 감소
+     *
+     * @CacheEvict와 키 정합성 맞추기 위해 username 기반으로 통일
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "userTotalVolume", key = "#username")
+    public Double getTotalVolumeByUsername(String username) {
+        User user = getUser(username);
+        return sessionRepository.sumTotalVolumeByUserId(user.getId());
     }
 
 }
