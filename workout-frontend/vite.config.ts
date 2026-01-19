@@ -20,45 +20,14 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // 벤더 코드를 세밀하게 분리하여 캐시 효율성 극대화
-        manualChunks: (id) => {
-          // node_modules의 외부 라이브러리만 분리
-          if (id.includes('node_modules')) {
-            // React 코어
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'vendor-react';
-            }
-            // MUI 관련 (가장 무거움 - 약 300KB gzip)
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'vendor-mui';
-            }
-            // 차트 라이브러리 (약 150KB gzip)
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
-            }
-            // 애니메이션 (약 100KB gzip)
-            if (id.includes('framer-motion')) {
-              return 'vendor-motion';
-            }
-            // 폼 관련
-            if (id.includes('react-hook-form') || id.includes('zod') || id.includes('@hookform')) {
-              return 'vendor-forms';
-            }
-            // 상태 관리
-            if (id.includes('zustand')) {
-              return 'vendor-state';
-            }
-            // 날짜/시간
-            if (id.includes('date-fns')) {
-              return 'vendor-date';
-            }
-            // HTTP 클라이언트
-            if (id.includes('axios')) {
-              return 'vendor-http';
-            }
-            // 나머지 외부 라이브러리
-            return 'vendor-misc';
-          }
+        // 벤더 코드 분리 (함수 형태는 의존성 순환 문제 발생, 객체 형태 사용)
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          'vendor-charts': ['recharts'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'vendor-utils': ['date-fns', 'axios', 'zustand'],
         },
       },
     },
