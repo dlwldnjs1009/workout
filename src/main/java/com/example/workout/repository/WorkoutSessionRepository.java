@@ -16,12 +16,12 @@ import java.util.List;
 @Repository
 public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, Long> {
 
-    // 페이지네이션 적용된 세션 조회 (N+1 방지: exercisesPerformed fetch join)
-    @EntityGraph(attributePaths = {"exercisesPerformed", "exercisesPerformed.exerciseType"})
+    // 페이지네이션 적용된 세션 조회
+    // Note: @EntityGraph + Pageable은 Hibernate 6에서 에러 발생 (in-memory pagination 금지)
     Page<WorkoutSession> findByUserIdOrderByDateDesc(Long userId, Pageable pageable);
 
-    // 최근 N개 세션 조회 (대시보드용, N+1 방지)
-    @EntityGraph(attributePaths = {"exercisesPerformed", "exercisesPerformed.exerciseType"})
+    // 최근 N개 세션 조회 (대시보드용)
+    // Note: @EntityGraph + Pageable 조합 불가, 별도 fetch 필요 시 서비스에서 처리
     @Query("SELECT s FROM WorkoutSession s " +
            "WHERE s.user.id = :userId " +
            "ORDER BY s.date DESC")
