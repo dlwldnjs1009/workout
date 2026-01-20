@@ -19,8 +19,8 @@ COPY --from=build /app/build/libs/*.jar app.jar
 # Spring Boot Layertools를 사용하여 JAR 레이어 추출 (클래스 로딩 경합 해결)
 RUN java -Djarmode=layertools -jar app.jar extract
 
-# Stage 3: 실행 환경
-FROM eclipse-temurin:21-jre-alpine
+# Stage 3: 실행 환경 (JDK - JFR/jcmd 프로파일링 도구 포함)
+FROM eclipse-temurin:21-jdk-alpine
 WORKDIR /app
 
 # tini + wget 설치 (PID 1 문제 해결 + healthcheck 지원)
