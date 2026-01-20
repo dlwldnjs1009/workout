@@ -37,8 +37,8 @@ services:
       mysql:
         condition: service_healthy
     platform: linux/arm64
-    # 메모리 soft limit (v3에서는 mem_limit 미지원, Swarm 외 환경)
-    mem_reservation: 2560M
+    # 메모리 soft limit: 힙 2GB + Metaspace 384MB + Direct 256MB + Native ~360MB
+    mem_reservation: 3072M
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/workout?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
@@ -53,24 +53,26 @@ services:
 
       SERVER_PORT: "8080"
       
-      # HikariCP 연결 풀 최적화
-      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
-      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
+      # HikariCP 연결 풀 최적화 (부하 테스트 기반 튜닝)
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "15"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "7"
       SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "20000"
       SPRING_DATASOURCE_HIKARI_VALIDATION_TIMEOUT: "5000"
       SPRING_DATASOURCE_HIKARI_LEAK_DETECTION_THRESHOLD: "60000"
 
-      # JVM 최적화 설정 (JFR 분석 기반)
-      # JAVA_TOOL_OPTIONS: 런타임에 자동 주입되는 JVM 옵션
-      # - 고정 힙 메모리로 GC 빈도 감소
-      # - G1GC 사용으로 낮은 pause time 보장
-      # - String deduplication으로 메모리 효율 향상
-      # - mem_limit(2560M)의 60%를 힙으로 할당, 나머지는 metaspace/direct/native용
+      # JVM 최적화 설정 (부하 테스트 기반 튜닝)
+      # - 힙 2GB로 증가 (GC 압력 감소)
+      # - G1GC 튜닝: pause 150ms, region 4m
+      # - InitiatingHeapOccupancyPercent 45%: 더 일찍 concurrent GC 시작
+      # - JFR: 연속 녹화, maxsize 100MB, 덤프는 수동으로
       JAVA_TOOL_OPTIONS: >-
-        -Xms1536m
-        -Xmx1536m
+        -Xms2g
+        -Xmx2g
         -XX:+UseG1GC
-        -XX:MaxGCPauseMillis=200
+        -XX:MaxGCPauseMillis=150
+        -XX:G1HeapRegionSize=4m
+        -XX:InitiatingHeapOccupancyPercent=45
+        -XX:G1ReservePercent=15
         -XX:+UseStringDeduplication
         -XX:+ParallelRefProcEnabled
         -XX:MetaspaceSize=256m
