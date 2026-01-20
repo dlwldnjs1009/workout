@@ -37,3 +37,6 @@ out/
 .vscode/
 
 .env
+
+*.jfr
+repomix-output.xml

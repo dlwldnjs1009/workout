@@ -2,6 +2,10 @@
 FROM gradle:8.5-jdk21 AS build
 WORKDIR /app
 
+# Sentry 인증 토큰 (소스 컨텍스트 업로드용)
+ARG SENTRY_AUTH_TOKEN
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+
 # Gradle 파일 복사
 COPY build.gradle settings.gradle ./
 COPY gradle ./gradle

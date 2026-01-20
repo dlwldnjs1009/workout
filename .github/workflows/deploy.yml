@@ -57,6 +57,8 @@ jobs:
           cache-to: type=gha,mode=max
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
+          build-args: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: 프론트엔드 메타데이터 추출
         id: meta-frontend
