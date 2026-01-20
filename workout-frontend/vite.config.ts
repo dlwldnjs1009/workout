@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { version } from './package.json';
 
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [react()],
   // 프로덕션에서만 console.log 제거 (개발 모드에서는 유지)
   esbuild: mode === 'production' ? { drop: ['console', 'debugger'] } : {},
