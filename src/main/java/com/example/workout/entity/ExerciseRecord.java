@@ -40,4 +40,5 @@ public class ExerciseRecord {
 
     private Double weight; // in kg or lbs
     private Integer duration; // in seconds (for cardio exercises)
+    private Double rpe; // Rate of Perceived Exertion (6-10 scale)
 }

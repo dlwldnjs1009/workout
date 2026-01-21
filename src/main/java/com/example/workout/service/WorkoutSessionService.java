@@ -86,6 +86,7 @@ public class WorkoutSessionService {
                 record.setReps(recordDTO.getReps());
                 record.setWeight(recordDTO.getWeight());
                 record.setDuration(recordDTO.getDuration());
+                record.setRpe(recordDTO.getRpe());
 
                 exerciseRecordRepository.save(record);
             }
