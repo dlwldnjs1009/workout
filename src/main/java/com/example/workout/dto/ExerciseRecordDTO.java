@@ -26,4 +26,6 @@ public class ExerciseRecordDTO {
     private Double weight;
 
     private Integer duration;
+
+    private Double rpe;
 }
