@@ -27,13 +27,10 @@ jobs:
             context: .
             file: ./Dockerfile
             image_suffix: backend
-            build_args: |
-              SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
           - target: frontend
             context: ./workout-frontend
             file: ./workout-frontend/Dockerfile
             image_suffix: frontend
-            build_args: ""
 
     steps:
       - name: 저장소 체크아웃
@@ -59,7 +56,8 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: 이미지 빌드 및 푸시
+      - name: 백엔드 이미지 빌드 및 푸시
+        if: matrix.target == 'backend'
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
@@ -70,7 +68,21 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.build_args }}
+          build-args: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: 프론트엔드 이미지 빌드 및 푸시
+        if: matrix.target == 'frontend'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          platforms: linux/arm64
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   deploy:
     name: OCI 서버에 배포
