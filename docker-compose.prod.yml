@@ -149,6 +149,11 @@ services:
       # Universal Service Monitoring (USM)
       - DD_SYSTEM_PROBE_SERVICE_MONITORING_ENABLED=true
       - DD_PROCESS_AGENT_ENABLED=true
+      # System Probe 및 OOM Kill 모니터링
+      - DD_SYSTEM_PROBE_ENABLED=true
+      - DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL=true
+      # Java Runtime Metrics (DogStatsD 컨테이너 간 통신)
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       # MySQL DBM 비밀번호
       - DD_MYSQL_PASSWORD=${DD_MYSQL_PASSWORD}
     volumes:
@@ -158,8 +163,10 @@ services:
       # 로그 수집용 볼륨
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - datadog_run:/opt/datadog-agent/run:rw
-      # USM용 볼륨
+      # System Probe 및 OOM Kill용 볼륨
       - /sys/kernel/debug:/sys/kernel/debug
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
       # MySQL DBM 설정
       - ./datadog/conf.d/mysql.d:/conf.d/mysql.d:ro
     cap_add:

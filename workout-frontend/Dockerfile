@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Stage 1: React 빌드
 FROM node:20-alpine AS build
 WORKDIR /app
@@ -5,8 +7,9 @@ WORKDIR /app
 # package 파일 복사
 COPY package*.json ./
 
-# 의존성 설치
-RUN npm ci
+# 의존성 설치 (npm 캐시 마운트 사용)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 # 소스 코드 복사
 COPY . .
