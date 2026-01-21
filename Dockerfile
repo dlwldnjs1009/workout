@@ -33,6 +33,8 @@ RUN apk add --no-cache tini wget
 # 보안을 위한 non-root 사용자 생성
 RUN addgroup -S spring && adduser -S spring -G spring
 
+RUN wget -O /app/dd-java-agent.jar https://dtdg.co/latest-java-tracer
+
 # 추출된 레이어를 순서대로 복사 (Docker 캐싱 최적화)
 COPY --from=builder /app/dependencies/ ./
 COPY --from=builder /app/spring-boot-loader/ ./
@@ -52,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 
 # tini를 PID 1로 실행, JAVA_TOOL_OPTIONS 환경변수로 JVM 설정 주입
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+CMD ["java", "-javaagent:/app/dd-java-agent.jar", "org.springframework.boot.loader.launch.JarLauncher"]
