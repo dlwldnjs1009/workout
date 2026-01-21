@@ -7,6 +7,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ReplayIcon from '@mui/icons-material/Replay';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
@@ -17,10 +18,11 @@ interface SessionItemProps {
   session: WorkoutSession;
   onNavigate: (id: number | undefined) => void;
   onDelete: (e: React.MouseEvent, id: number | undefined) => void;
+  onRepeat: (e: React.MouseEvent, session: WorkoutSession) => void;
   dividerColor: string;
 }
 
-const SessionItem = memo(({ session, onNavigate, onDelete, dividerColor }: SessionItemProps) => {
+const SessionItem = memo(({ session, onNavigate, onDelete, onRepeat, dividerColor }: SessionItemProps) => {
   // useMemo로 운동 종목 수 캐싱
   const exerciseCount = useMemo(
     () => new Set(session.exercisesPerformed.map(e => e.exerciseName)).size,
@@ -54,6 +56,14 @@ const SessionItem = memo(({ session, onNavigate, onDelete, dividerColor }: Sessi
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={(e) => onRepeat(e, session)}
+            sx={{ opacity: 0.7, '&:hover': { opacity: 1, bgcolor: 'rgba(49, 130, 246, 0.1)' } }}
+          >
+            <ReplayIcon fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             color="error"
@@ -112,6 +122,11 @@ const WorkoutHistory = () => {
 
   const handleNavigateToSession = useCallback((id: number | undefined) => {
     if (id) navigate(`/sessions/${id}`);
+  }, [navigate]);
+
+  const handleRepeatWorkout = useCallback((e: React.MouseEvent, session: WorkoutSession) => {
+    e.stopPropagation();
+    navigate('/log-workout', { state: { previousSession: session } });
   }, [navigate]);
 
   const handleDeleteSession = async () => {
@@ -188,6 +203,7 @@ const WorkoutHistory = () => {
                                 session={session}
                                 onNavigate={handleNavigateToSession}
                                 onDelete={openDeleteConfirm}
+                                onRepeat={handleRepeatWorkout}
                                 dividerColor={theme.palette.divider}
                             />
                         ))}

@@ -529,6 +529,7 @@ const WorkoutLog = () => {
   const invalidateSessions = useWorkoutStore((state) => state.invalidateSessions);
   const [showSuccess, setShowSuccess] = useState(false);
   const routineToStart = location.state?.routine as WorkoutRoutine | undefined;
+  const previousSession = location.state?.previousSession as WorkoutSession | undefined;
   
   const { 
       wipSession, saveWipSession, clearWipSession,
@@ -554,7 +555,7 @@ const WorkoutLog = () => {
   }, [isRestTimerRunning, updateRestTimer]);
 
   const defaultFormValues = useMemo(() => {
-    if (routineToStart) {
+    if (routineToStart || previousSession) {
       return {
         date: new Date().toISOString().split('T')[0],
         duration: 0,
@@ -574,7 +575,7 @@ const WorkoutLog = () => {
       notes: '',
       exercisesPerformed: []
     };
-  }, [routineToStart, wipSession]);
+  }, [routineToStart, previousSession, wipSession]);
 
   const methods = useForm<WorkoutSessionFormData>({
     resolver: zodResolver(workoutSessionSchema),
@@ -630,6 +631,39 @@ const WorkoutLog = () => {
         setValue('exercisesPerformed', routineExercises);
     }
   }, [routineToStart, exercises, setValue]);
+
+  useEffect(() => {
+    if (previousSession && exercises.length > 0) {
+        // 이전 세션의 운동 기록을 운동별로 그룹화
+        const exerciseMap = new Map<number, { exerciseId: number; exerciseName: string; sets: Array<{ setNumber: number; reps: number; weight: number; rpe?: number }> }>();
+
+        previousSession.exercisesPerformed.forEach(record => {
+            const existing = exerciseMap.get(record.exerciseId);
+            if (existing) {
+                existing.sets.push({
+                    setNumber: existing.sets.length + 1,
+                    reps: record.reps,
+                    weight: record.weight || 0,
+                    rpe: record.rpe
+                });
+            } else {
+                const ex = exercises.find(e => e.id === record.exerciseId);
+                exerciseMap.set(record.exerciseId, {
+                    exerciseId: record.exerciseId,
+                    exerciseName: record.exerciseName || ex?.name || 'Unknown',
+                    sets: [{
+                        setNumber: 1,
+                        reps: record.reps,
+                        weight: record.weight || 0,
+                        rpe: record.rpe
+                    }]
+                });
+            }
+        });
+
+        setValue('exercisesPerformed', Array.from(exerciseMap.values()));
+    }
+  }, [previousSession, exercises, setValue]);
 
   const filteredExercises = useMemo(() => {
     if (selectedCategory === 'ALL') return exercises;

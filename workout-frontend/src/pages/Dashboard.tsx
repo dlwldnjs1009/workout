@@ -483,7 +483,9 @@ const RecentActivityList = memo<RecentActivityListProps>(({ sessions, isDark, on
                       </Typography>
                     </Box>
                   </Box>
-                  <ArrowForwardIosIcon sx={{ color: 'text.disabled', fontSize: '18px' }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ArrowForwardIosIcon sx={{ color: 'text.disabled', fontSize: '18px' }} />
+                  </Box>
                 </Box>
               </TossCard>
             </motion.div>
@@ -525,7 +527,9 @@ const Dashboard = () => {
 
   const handleLogWorkout = useCallback(() => navigate('/log-workout'), [navigate]);
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
-
+  useCallback((session: WorkoutDashboardData['recentSessions'][0]) => {
+    navigate('/log-workout', { state: { previousSession: session } });
+  }, [navigate]);
   if (loading || !dashboardData || !dietSummary) {
     return <DashboardSkeleton />;
   }
