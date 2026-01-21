@@ -22,8 +22,17 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    // 캐싱된 인스턴스 (매 요청마다 생성하지 않음)
+    private Key signingKey;
+    private JwtParser jwtParser;
+
     @PostConstruct
-    public void validateSecret() {
+    public void init() {
+        validateSecret();
+        initCachedInstances();
+    }
+
+    private void validateSecret() {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                 "JWT_SECRET environment variable is not set. " +
@@ -38,8 +47,16 @@ public class JwtUtil {
         log.info("JWT secret validated successfully");
     }
 
+    private void initCachedInstances() {
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+        this.jwtParser = Jwts.parserBuilder()
+            .setSigningKey(signingKey)
+            .build();
+        log.info("JWT parser cached successfully");
+    }
+
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return signingKey;
     }
 
     public String generateToken(String username) {
@@ -55,9 +72,7 @@ public class JwtUtil {
     }
 
     public String extractUsername(String token) {
-        return Jwts.parserBuilder()
-            .setSigningKey(getSigningKey())
-            .build()
+        return jwtParser
             .parseClaimsJws(token)
             .getBody()
             .getSubject();
@@ -65,10 +80,7 @@ public class JwtUtil {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token);
+            jwtParser.parseClaimsJws(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;

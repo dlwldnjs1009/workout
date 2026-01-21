@@ -63,7 +63,16 @@ services:
       DD_ENV: production
       DD_VERSION: "1.0.0"
       DD_AGENT_HOST: datadog-agent
-      
+      DD_PROFILING_ENABLED: "true"
+      DD_LOGS_INJECTION: "true"
+      DD_DATA_STREAMS_ENABLED: "true"
+      DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED: "true"
+      DD_REMOTE_CONFIGURATION_ENABLED: "true"
+      # DBM-APM 연결 설정
+      DD_DBM_PROPAGATION_MODE: "full"
+      DD_INTEGRATION_JDBC_DATASOURCE_ENABLED: "true"
+      DD_RUNTIME_METRICS_ENABLED: "true"
+
       # HikariCP 연결 풀 최적화 (부하 테스트 기반 튜닝)
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
       SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
@@ -73,17 +82,18 @@ services:
 
       # JVM 최적화 설정 (부하 테스트 기반 튜닝)
       # - 힙 2GB로 증가 (GC 압력 감소)
-      # - G1GC 튜닝: pause 150ms, region 4m
+      # - G1GC 튜닝: pause 150ms, region 8m (Humongous 임계값 4MB로 증가)
       # - InitiatingHeapOccupancyPercent 45%: 더 일찍 concurrent GC 시작
-      # - JFR: 연속 녹화, maxsize 100MB, 덤프는 수동으로
+      # - G1MixedGCCountTarget: Mixed GC 사이클 수 조절
       JAVA_TOOL_OPTIONS: >-
         -Xms2g
         -Xmx2g
         -XX:+UseG1GC
         -XX:MaxGCPauseMillis=150
-        -XX:G1HeapRegionSize=4m
+        -XX:G1HeapRegionSize=8m
         -XX:InitiatingHeapOccupancyPercent=45
         -XX:G1ReservePercent=15
+        -XX:G1MixedGCCountTarget=4
         -XX:+UseStringDeduplication
         -XX:+ParallelRefProcEnabled
         -XX:MetaspaceSize=256m
@@ -129,12 +139,40 @@ services:
     restart: always
     environment:
       - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=us5.datadoghq.com
       - DD_APM_ENABLED=true
       - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
+      # Docker 로그 수집
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # Universal Service Monitoring (USM)
+      - DD_SYSTEM_PROBE_SERVICE_MONITORING_ENABLED=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      # MySQL DBM 비밀번호
+      - DD_MYSQL_PASSWORD=${DD_MYSQL_PASSWORD}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      # 로그 수집용 볼륨
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - datadog_run:/opt/datadog-agent/run:rw
+      # USM용 볼륨
+      - /sys/kernel/debug:/sys/kernel/debug
+      # MySQL DBM 설정
+      - ./datadog/conf.d/mysql.d:/conf.d/mysql.d:ro
+    cap_add:
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - SYS_PTRACE
+      - NET_ADMIN
+      - NET_BROADCAST
+      - NET_RAW
+      - IPC_LOCK
+      - CHOWN
+    security_opt:
+      - apparmor:unconfined
     networks:
       - workout-network
 
@@ -204,3 +242,4 @@ volumes:
   grafana_data:
   prometheus_data:
   loki_data:
+  datadog_run:
