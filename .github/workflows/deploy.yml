@@ -14,7 +14,7 @@ env:
 jobs:
   build-and-push:
     name: Docker 이미지 빌드 (${{ matrix.target }})
-    runs-on: ubuntu-24.04-arm  # ARM64 네이티브 러너
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -26,13 +26,13 @@ jobs:
           - target: backend
             context: .
             file: ./Dockerfile
-            image_name_env: BACKEND_IMAGE_NAME
+            image_suffix: backend
             build_args: |
               SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
           - target: frontend
             context: ./workout-frontend
             file: ./workout-frontend/Dockerfile
-            image_name_env: FRONTEND_IMAGE_NAME
+            image_suffix: frontend
             build_args: ""
 
     steps:
@@ -53,7 +53,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ matrix.target == 'backend' && env.BACKEND_IMAGE_NAME || env.FRONTEND_IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image_suffix }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
