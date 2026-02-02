@@ -18,6 +18,7 @@ import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Reorder, useDragControls } from 'framer-motion';
 import SuccessFeedback from '../components/SuccessFeedback';
+import { PoseAnalysisView } from '../components/pose';
 import { workoutService } from '../services/workoutService';
 import type { WorkoutRoutine, WorkoutSession } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
@@ -26,6 +27,7 @@ import BottomSheet from '../components/BottomSheet';
 import VerticalScrollSelector from '../components/VerticalScrollSelector';
 import {HorizontalScrollSelector} from "../components/NumberInputSelector.tsx";
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 
 const RPE_OPTIONS = [
     { value: 10, label: '10 (이게 한계다)' },
@@ -543,6 +545,8 @@ const WorkoutLog = () => {
   const [activePicker, setActivePicker] = useState<{ exerciseIndex: number, setIndex: number, type: 'reps' | 'weight' | 'rpe' } | null>(null);
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<number>>(new Set());
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false);
+  const [poseAnalysisOpen, setPoseAnalysisOpen] = useState(false);
+  const [lastPoseResult, setLastPoseResult] = useState<{ repCount: number; avgFormScore: number } | null>(null);
 
   useEffect(() => {
     let interval: number;
@@ -805,6 +809,11 @@ const WorkoutLog = () => {
       });
   }, [remove]);
 
+  const handlePoseSessionComplete = useCallback((data: { repCount: number; avgFormScore: number }) => {
+      setLastPoseResult(data);
+      setPoseAnalysisOpen(false);
+  }, []);
+
   return (
     <FormProvider {...methods}>
       <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ pb: 12 }}>
@@ -875,7 +884,7 @@ const WorkoutLog = () => {
             </Paper>
         )}
 
-        <Box sx={{ position: 'fixed', top: 80, right: 16, zIndex: 100 }}>
+        <Box sx={{ position: 'fixed', top: 80, right: 16, zIndex: 100, display: 'flex', flexDirection: 'column', gap: 1 }}>
              <Fab 
                 size="small" 
                 color="default" 
@@ -883,6 +892,14 @@ const WorkoutLog = () => {
                 sx={{ bgcolor: 'background.paper', boxShadow: theme.shadows[2] }}
             >
                 <AccessTimeIcon color={isRestTimerRunning ? "primary" : "action"} />
+            </Fab>
+            <Fab 
+                size="small" 
+                color="default" 
+                onClick={() => setPoseAnalysisOpen(true)}
+                sx={{ bgcolor: 'background.paper', boxShadow: theme.shadows[2] }}
+            >
+                <FitnessCenterIcon color="primary" />
             </Fab>
         </Box>
 
@@ -1173,6 +1190,66 @@ const WorkoutLog = () => {
           onClose={() => navigate('/')} 
           message="운동 기록 완료!"
         />
+
+        {/* 자세 분석 다이얼로그 */}
+        <Dialog
+          open={poseAnalysisOpen}
+          onClose={() => setPoseAnalysisOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          fullScreen={isMobile}
+          PaperProps={{
+            sx: {
+              borderRadius: isMobile ? 0 : '24px',
+              height: isMobile ? '100%' : '80vh',
+              maxHeight: isMobile ? '100%' : '700px',
+            },
+          }}
+        >
+          <PoseAnalysisView
+            onClose={() => setPoseAnalysisOpen(false)}
+            onSessionComplete={handlePoseSessionComplete}
+          />
+        </Dialog>
+
+        {/* 자세 분석 결과 스낵바 */}
+        {lastPoseResult && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'fixed',
+              bottom: isMobile ? 80 : 32,
+              left: 16,
+              right: 16,
+              zIndex: 1100,
+              bgcolor: 'success.dark',
+              color: 'white',
+              px: 3,
+              py: 2,
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box>
+              <Typography variant="body1" fontWeight="700">
+                자세 분석 완료!
+              </Typography>
+              <Typography variant="body2">
+                {lastPoseResult.repCount}회 반복 | 평균 폼 점수: {lastPoseResult.avgFormScore}점
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setLastPoseResult(null)}
+              sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+            >
+              닫기
+            </Button>
+          </Paper>
+        )}
       </Box>
     </FormProvider>
   );

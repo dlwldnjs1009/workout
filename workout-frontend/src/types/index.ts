@@ -33,6 +33,9 @@ export interface ExerciseRecord {
   duration?: number;
   rpe?: number;
   completed?: boolean;
+  // Pose analysis data
+  poseFormScore?: number;
+  poseRepCount?: number;
 }
 
 export interface WorkoutSession {
@@ -122,4 +125,84 @@ export interface UserProfile {
   bodyFatMass?: number;
   basalMetabolicRate?: number;
   updatedAt?: string;
+}
+
+// ===== Pose Detection Types =====
+
+export interface PoseLandmark {
+  x: number;
+  y: number;
+  z: number;
+  visibility: number;  // 가시성 (가림 정도, 0-1)
+  presence?: number;   // 존재 확률 (있다/없다, 0-1)
+}
+
+export const POSE_LANDMARKS = {
+  NOSE: 0,
+  LEFT_EYE_INNER: 1,
+  LEFT_EYE: 2,
+  LEFT_EYE_OUTER: 3,
+  RIGHT_EYE_INNER: 4,
+  RIGHT_EYE: 5,
+  RIGHT_EYE_OUTER: 6,
+  LEFT_EAR: 7,
+  RIGHT_EAR: 8,
+  MOUTH_LEFT: 9,
+  MOUTH_RIGHT: 10,
+  LEFT_SHOULDER: 11,
+  RIGHT_SHOULDER: 12,
+  LEFT_ELBOW: 13,
+  RIGHT_ELBOW: 14,
+  LEFT_WRIST: 15,
+  RIGHT_WRIST: 16,
+  LEFT_PINKY: 17,
+  RIGHT_PINKY: 18,
+  LEFT_INDEX: 19,
+  RIGHT_INDEX: 20,
+  LEFT_THUMB: 21,
+  RIGHT_THUMB: 22,
+  LEFT_HIP: 23,
+  RIGHT_HIP: 24,
+  LEFT_KNEE: 25,
+  RIGHT_KNEE: 26,
+  LEFT_ANKLE: 27,
+  RIGHT_ANKLE: 28,
+  LEFT_HEEL: 29,
+  RIGHT_HEEL: 30,
+  LEFT_FOOT_INDEX: 31,
+  RIGHT_FOOT_INDEX: 32,
+} as const;
+
+export type SquatPhase = 'STANDING' | 'DESCENDING' | 'BOTTOM' | 'ASCENDING';
+export type CameraStatus = 'IDLE' | 'REQUESTING' | 'ACTIVE' | 'DENIED' | 'ERROR';
+export type CameraMode = 'FRONT' | 'SIDE';
+export type LandmarkConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface SquatCalibration {
+  standingAngle: number;
+  bottomAngle: number;
+  isCalibrated: boolean;
+}
+
+export interface SquatAnalysis {
+  phase: SquatPhase;
+  kneeAngle: number;
+  depth: 'SHALLOW' | 'PARALLEL' | 'DEEP';
+  repCount: number;
+  formScore: number;
+  feedback: string[];
+  confidence: LandmarkConfidence;
+  calibration?: SquatCalibration;
+}
+
+export interface PoseSessionState {
+  cameraStatus: CameraStatus;
+  cameraMode: CameraMode;
+  isDetecting: boolean;
+  currentLandmarks: PoseLandmark[] | null;
+  fps: number;
+  repCount: number;
+  lastFeedback: string[];
+  sessionFormScores: number[];
+  calibration: SquatCalibration;
 }

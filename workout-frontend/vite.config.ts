@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => ({
           'vendor-motion': ['framer-motion'],
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'vendor-utils': ['date-fns', 'axios', 'zustand'],
+          'vendor-mediapipe': ['@mediapipe/tasks-vision'],
         },
       },
     },
@@ -43,6 +44,11 @@ export default defineConfig(({ mode }) => ({
     minify: 'esbuild',
     // 타겟 브라우저 (최신 브라우저 타겟팅)
     target: 'es2020',
+  },
+  // Worker 설정
+  worker: {
+    format: 'es',
+    plugins: () => [react()],
   },
   // 의존성 사전 번들링 최적화
   optimizeDeps: {
@@ -56,6 +62,7 @@ export default defineConfig(({ mode }) => ({
       '@emotion/styled',
       'zustand',
       'axios',
+      '@mediapipe/tasks-vision',
     ],
     // 제외할 의존성 (필요시 추가)
     exclude: [],
