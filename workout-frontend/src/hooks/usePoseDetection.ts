@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { poseService } from '../services/poseService';
+import { poseService, PoseService } from '../services/poseService';
 import { usePoseStore } from '../store/poseStore';
 import type { PoseLandmark } from '../types';
 
@@ -104,10 +104,7 @@ export function usePoseDetection(
       const result = poseService.detectForVideo(video, timestamp);
 
       if (result) {
-        const landmarks = poseService.constructor.prototype.constructor.convertLandmarks
-          ? (poseService as any).constructor.convertLandmarks(result)
-          : convertLandmarksFromResult(result);
-
+        const landmarks = PoseService.convertLandmarks(result);
         updateLandmarks(landmarks);
       } else {
         updateLandmarks(null);
@@ -191,24 +188,6 @@ export function usePoseDetection(
     startDetection,
     stopDetection,
   };
-}
-
-// MediaPipe 결과를 PoseLandmark 배열로 변환하는 헬퍼 함수
-function convertLandmarksFromResult(result: any): PoseLandmark[] | null {
-  if (!result.landmarks || result.landmarks.length === 0) {
-    return null;
-  }
-
-  const landmarks = result.landmarks[0];
-  const worldLandmarks = result.worldLandmarks?.[0];
-
-  return landmarks.map((lm: any, index: number) => ({
-    x: lm.x,
-    y: lm.y,
-    z: worldLandmarks?.[index]?.z ?? lm.z ?? 0,
-    visibility: lm.visibility ?? 0,
-    presence: lm.presence ?? 1,
-  }));
 }
 
 export default usePoseDetection;
