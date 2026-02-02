@@ -42,12 +42,11 @@ export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
           width,
           height,
           backgroundColor: 'grey.900',
-          borderRadius: 2,
+          borderRadius: 0, // 모바일에서 모서리 둥글기 제거
           overflow: 'hidden',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: 300,
         }}
       >
         {/* 비디오 요소 */}
@@ -60,7 +59,7 @@ export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
           sx={{
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
+            objectFit: 'contain', // contain으로 비율 유지 (letterbox)
             // FRONT 모드: 미러링 (거울처럼), SIDE 모드: 미러링 없음
             transform: mirrored ? 'scaleX(-1)' : 'none',
             display: cameraStatus === 'ACTIVE' ? 'block' : 'none',

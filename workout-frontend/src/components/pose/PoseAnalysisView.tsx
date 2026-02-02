@@ -12,7 +12,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  Alert,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -103,11 +102,11 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
 
   const averageFormScore = usePoseStore(selectAverageFormScore);
 
-  // 운동 타입에 따른 권장 카메라 모드
+  // 운동 타입에 따른 권장 카메라 모드 (카테고리 변경 시 자동 전환에 사용)
   const recommendedCameraMode =
     exerciseCategory === 'BACK' ? EXERCISE_CAMERA_MODE[backExerciseType] : 'FRONT';
-
-  const isRecommendedMode = cameraMode === recommendedCameraMode;
+  // 권장 모드 여부 (향후 경고 표시에 활용 가능)
+  void recommendedCameraMode;
 
   // 분석 실행 (운동 카테고리에 따라 분기)
   useEffect(() => {
@@ -217,34 +216,12 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
       {/* 헤더 */}
       <Box
         sx={{
-          p: 1.5,
+          p: 1,
           borderBottom: 1,
           borderColor: 'divider',
         }}
       >
-        {/* 상단: 제목 + 닫기 */}
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            mb: 1.5,
-          }}
-        >
-          <Typography variant="h6" fontWeight="bold">
-            {exerciseCategory === 'SQUAT'
-              ? '스쿼트 자세 분석'
-              : `${BACK_EXERCISE_NAMES[backExerciseType]} 자세 분석`}
-          </Typography>
-
-          {onClose && (
-            <IconButton onClick={onClose} size="small">
-              <Close />
-            </IconButton>
-          )}
-        </Box>
-
-        {/* 운동 선택 + 카메라 모드 */}
+        {/* 운동 선택 + 카메라 모드 + 닫기 (한 줄로) */}
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           {/* 운동 카테고리 토글 */}
           <ToggleButtonGroup
@@ -310,24 +287,25 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
               </Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
-        </Stack>
 
-        {/* 권장 카메라 모드 안내 */}
-        {!isActive && !isRecommendedMode && (
-          <Alert severity="info" sx={{ mt: 1, py: 0.5 }}>
-            {exerciseCategory === 'BACK'
-              ? `${BACK_EXERCISE_NAMES[backExerciseType]}은(는) ${
-                  recommendedCameraMode === 'SIDE' ? '측면' : '정면'
-                } 카메라를 권장합니다`
-              : '스쿼트는 정면 카메라를 권장합니다'}
-          </Alert>
-        )}
+          {/* 닫기 버튼 */}
+          {onClose && (
+            <IconButton onClick={onClose} size="small">
+              <Close />
+            </IconButton>
+          )}
+        </Stack>
       </Box>
 
       {/* 카메라 피드 + 오버레이 */}
       <Box
         ref={videoContainerRef}
-        sx={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}
+        sx={{
+          position: 'relative',
+          flex: 1,
+          minHeight: { xs: '65vh', sm: '70vh' }, // 모바일에서 최소 65% 화면 높이
+          overflow: 'hidden',
+        }}
       >
         <CameraFeed
           ref={videoRef}
@@ -401,39 +379,51 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
             </Typography>
           </Box>
         )}
+
+        {/* 피드백 패널 오버레이 (비디오 하단에 겹쳐서 표시) */}
+        {isActive && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              bgcolor: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <FeedbackPanel
+              exerciseCategory={exerciseCategory}
+              phase={exerciseCategory === 'SQUAT' ? currentPhase : pullingPhase}
+              kneeAngle={currentKneeAngle}
+              repCount={repCount}
+              formScore={lastFormScore}
+              feedback={lastFeedback}
+              fps={fps}
+              confidence={
+                landmarks
+                  ? landmarks.every((l) => l.visibility > 0.75)
+                    ? 'HIGH'
+                    : landmarks.every((l) => l.visibility > 0.5)
+                    ? 'MEDIUM'
+                    : 'LOW'
+                  : 'LOW'
+              }
+              calibration={exerciseCategory === 'SQUAT' ? calibration : undefined}
+              backCalibration={exerciseCategory === 'BACK' ? backCalibration : undefined}
+              isDetecting={isDetecting}
+            />
+          </Box>
+        )}
       </Box>
 
-      {/* 피드백 패널 */}
-      <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
-        <FeedbackPanel
-          exerciseCategory={exerciseCategory}
-          phase={exerciseCategory === 'SQUAT' ? currentPhase : pullingPhase}
-          kneeAngle={currentKneeAngle}
-          repCount={repCount}
-          formScore={lastFormScore}
-          feedback={lastFeedback}
-          fps={fps}
-          confidence={
-            landmarks
-              ? landmarks.every((l) => l.visibility > 0.75)
-                ? 'HIGH'
-                : landmarks.every((l) => l.visibility > 0.5)
-                ? 'MEDIUM'
-                : 'LOW'
-              : 'LOW'
-          }
-          calibration={exerciseCategory === 'SQUAT' ? calibration : undefined}
-          backCalibration={exerciseCategory === 'BACK' ? backCalibration : undefined}
-          isDetecting={isDetecting}
-        />
-      </Box>
 
-      {/* 컨트롤 버튼 */}
+      {/* 컨트롤 버튼 (컴팩트) */}
       <Box
         sx={{
           display: 'flex',
           gap: 1,
-          p: 2,
+          p: 1,
           borderTop: 1,
           borderColor: 'divider',
         }}
@@ -445,7 +435,7 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
             startIcon={<PlayArrow />}
             onClick={handleStart}
             disabled={!isInitialized}
-            size="large"
+            size="medium"
           >
             시작
           </Button>
@@ -457,7 +447,7 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
               fullWidth
               startIcon={<Stop />}
               onClick={handleStop}
-              size="large"
+              size="medium"
             >
               종료
             </Button>
@@ -465,7 +455,7 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
               variant="outlined"
               startIcon={<RestartAlt />}
               onClick={handleReset}
-              size="large"
+              size="medium"
             >
               리셋
             </Button>
@@ -473,9 +463,9 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
         )}
       </Box>
 
-      {/* 안내 텍스트 */}
+      {/* 안내 텍스트 (모바일에서는 숨김) */}
       {!isActive && (
-        <Box sx={{ px: 2, pb: 2 }}>
+        <Box sx={{ px: 1, pb: 1, display: { xs: 'none', sm: 'block' } }}>
           <Typography variant="caption" color="text.secondary" textAlign="center" display="block">
             {exerciseCategory === 'SQUAT'
               ? cameraMode === 'FRONT'

@@ -1,12 +1,5 @@
-import { Box, Typography, Chip, LinearProgress, Stack, Paper } from '@mui/material';
-import {
-  CheckCircle,
-  Warning,
-  Error as ErrorIcon,
-  FitnessCenter,
-  Speed,
-  Straighten,
-} from '@mui/icons-material';
+import { Box, Typography, Chip, Stack } from '@mui/material';
+import { CheckCircle, Warning, Error as ErrorIcon } from '@mui/icons-material';
 import type {
   SquatPhase,
   PullingPhase,
@@ -89,6 +82,8 @@ export function FeedbackPanel({
   backCalibration,
   isDetecting,
 }: FeedbackPanelProps) {
+  // fps는 신뢰도 아이콘에서 사용
+  void fps;
   const ConfidenceIcon = confidenceConfig[confidence].icon;
 
   // 운동 카테고리에 따른 phase 라벨/색상
@@ -109,15 +104,14 @@ export function FeedbackPanel({
       : backCalibration?.isCalibrated ?? false;
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Stack spacing={2}>
-        {/* 상태 표시 바 */}
+    <Box sx={{ p: { xs: 1, sm: 2 } }}>
+      <Stack spacing={1}>
+        {/* 상태 표시 바 + 메인 지표 (모바일에서는 한 줄로) */}
         <Box
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
             gap: 1,
           }}
         >
@@ -129,177 +123,87 @@ export function FeedbackPanel({
             sx={{ fontWeight: 'bold' }}
           />
 
+          {/* 메인 지표들 - 한 줄로 */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* 반복 횟수 */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" fontWeight="bold" sx={{ color: '#90caf9' }}>
+                {repCount}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                회
+              </Typography>
+            </Box>
+
+            {/* 폼 점수 */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography
+                variant="h5"
+                fontWeight="bold"
+                sx={{ color: formScore >= 80 ? '#81c784' : formScore >= 60 ? '#ffb74d' : '#e57373' }}
+              >
+                {formScore > 0 ? formScore : '-'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                점
+              </Typography>
+            </Box>
+
+            {/* 무릎 각도 (스쿼트만) */}
+            {exerciseCategory === 'SQUAT' && (
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h5" fontWeight="bold" sx={{ color: '#4fc3f7' }}>
+                  {Math.round(kneeAngle)}°
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  각도
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
           {/* 신뢰도 */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <ConfidenceIcon
               fontSize="small"
               color={confidenceConfig[confidence].color}
             />
-            <Typography variant="caption" color="text.secondary">
-              {fps} FPS
-            </Typography>
           </Box>
         </Box>
-
-        {/* 메인 지표 */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 2,
-          }}
-        >
-          {/* 반복 횟수 */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              textAlign: 'center',
-              bgcolor: 'background.default',
-              borderRadius: 2,
-            }}
-          >
-            <FitnessCenter color="primary" />
-            <Typography variant="h4" fontWeight="bold">
-              {repCount}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              반복
-            </Typography>
-          </Paper>
-
-          {/* 폼 점수 */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              textAlign: 'center',
-              bgcolor: 'background.default',
-              borderRadius: 2,
-            }}
-          >
-            <Speed
-              color={formScore >= 80 ? 'success' : formScore >= 60 ? 'warning' : 'error'}
-            />
-            <Typography variant="h4" fontWeight="bold">
-              {formScore > 0 ? formScore : '-'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              폼 점수
-            </Typography>
-          </Paper>
-
-          {/* 무릎 각도 (스쿼트만) 또는 진행 상태 (등운동) */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              textAlign: 'center',
-              bgcolor: 'background.default',
-              borderRadius: 2,
-            }}
-          >
-            <Straighten color="info" />
-            {exerciseCategory === 'SQUAT' ? (
-              <>
-                <Typography variant="h4" fontWeight="bold">
-                  {Math.round(kneeAngle)}°
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  무릎 각도
-                </Typography>
-              </>
-            ) : (
-              <>
-                <Typography variant="h4" fontWeight="bold">
-                  {isCalibrated ? '준비됨' : '...'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  캘리브레이션
-                </Typography>
-              </>
-            )}
-          </Paper>
-        </Box>
-
-        {/* 깊이 진행바 (스쿼트만 표시) */}
-        {exerciseCategory === 'SQUAT' && (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">
-                깊이
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {kneeAngle < 90 ? '딥' : kneeAngle < 110 ? '평행' : '얕음'}
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={Math.max(0, Math.min(100, ((180 - kneeAngle) / 90) * 100))}
-              sx={{
-                height: 8,
-                borderRadius: 1,
-                bgcolor: 'grey.800',
-                '& .MuiLinearProgress-bar': {
-                  bgcolor:
-                    kneeAngle < 90
-                      ? 'success.main'
-                      : kneeAngle < 110
-                      ? 'info.main'
-                      : 'warning.main',
-                },
-              }}
-            />
-          </Box>
-        )}
 
         {/* 피드백 메시지 */}
         {feedback.length > 0 && (
           <Box
             sx={{
-              p: 1.5,
+              p: 1,
               bgcolor: feedback[0]?.includes('좋은') ? 'success.dark' : 'warning.dark',
-              borderRadius: 2,
+              borderRadius: 1,
             }}
           >
-            {feedback.map((msg, idx) => (
-              <Typography
-                key={idx}
-                variant="body2"
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  color: 'white',
-                }}
-              >
-                {msg.includes('좋은') ? (
-                  <CheckCircle fontSize="small" />
-                ) : (
-                  <Warning fontSize="small" />
-                )}
-                {msg}
-              </Typography>
-            ))}
+            <Typography
+              variant="body2"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                color: 'white',
+              }}
+            >
+              {feedback[0]?.includes('좋은') ? (
+                <CheckCircle fontSize="small" />
+              ) : (
+                <Warning fontSize="small" />
+              )}
+              {feedback[0]}
+            </Typography>
           </Box>
         )}
 
         {/* 캘리브레이션 상태 */}
         {!isCalibrated && isDetecting && (
-          <Box
-            sx={{
-              p: 1,
-              bgcolor: 'info.dark',
-              borderRadius: 1,
-              textAlign: 'center',
-            }}
-          >
-            <Typography variant="caption" color="white">
-              {exerciseCategory === 'SQUAT'
-                ? '캘리브레이션 중... 정확한 분석을 위해 3-5회 스쿼트를 수행해주세요'
-                : '캘리브레이션 중... 정확한 분석을 위해 3회 반복을 수행해주세요'}
-            </Typography>
-          </Box>
+          <Typography variant="caption" sx={{ color: '#4fc3f7' }} textAlign="center">
+            캘리브레이션 중... {exerciseCategory === 'SQUAT' ? '3-5회 스쿼트' : '3회 반복'} 수행
+          </Typography>
         )}
       </Stack>
     </Box>

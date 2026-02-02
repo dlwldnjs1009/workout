@@ -8,7 +8,7 @@ interface PoseOverlayProps {
   phase: SquatPhase | PullingPhase;
   exerciseCategory: ExerciseCategory;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  /** 비디오 요소 참조 - object-fit: cover 좌표 보정에 필요 */
+  /** 비디오 요소 참조 - object-fit: contain 좌표 보정에 필요 */
   videoRef: React.RefObject<HTMLVideoElement | null>;
   /** 미러링 여부 - FRONT 모드에서 true, SIDE 모드에서 false 권장 */
   mirrored?: boolean;
@@ -54,12 +54,12 @@ const UPPER_BODY_JOINTS: number[] = [
 ];
 
 /**
- * object-fit: cover 적용 시 랜드마크 좌표를 화면 좌표로 변환
+ * object-fit: contain 적용 시 랜드마크 좌표를 화면 좌표로 변환
  *
  * MediaPipe 랜드마크는 원본 비디오 기준 정규화 좌표(0~1)이므로,
- * cover로 크롭된 비디오의 실제 렌더링 영역에 맞춰 오프셋 보정 필요
+ * contain으로 letterbox된 비디오의 실제 렌더링 영역에 맞춰 오프셋 보정 필요
  */
-function mapToCoverSpace(
+function mapToContainSpace(
   lmX: number,
   lmY: number,
   videoW: number,
@@ -67,12 +67,12 @@ function mapToCoverSpace(
   viewW: number,
   viewH: number
 ): { x: number; y: number } {
-  // cover: 비디오가 컨테이너를 완전히 덮도록 스케일 (넘치는 부분은 크롭)
-  const scale = Math.max(viewW / videoW, viewH / videoH);
+  // contain: 비디오가 컨테이너 안에 완전히 들어가도록 스케일 (letterbox)
+  const scale = Math.min(viewW / videoW, viewH / videoH);
   const renderedW = videoW * scale;
   const renderedH = videoH * scale;
 
-  // 중앙 정렬로 인한 오프셋 (음수 = 크롭됨)
+  // 중앙 정렬로 인한 오프셋 (양수 = letterbox 여백)
   const offsetX = (viewW - renderedW) / 2;
   const offsetY = (viewH - renderedH) / 2;
 
@@ -166,9 +166,9 @@ export function PoseOverlay({
       if (!start || !end) continue;
       if (start.visibility < 0.5 || end.visibility < 0.5) continue;
 
-      // object-fit: cover 보정된 좌표 사용
-      const s = mapToCoverSpace(start.x, start.y, videoW, videoH, displayWidth, displayHeight);
-      const e = mapToCoverSpace(end.x, end.y, videoW, videoH, displayWidth, displayHeight);
+      // object-fit: contain 보정된 좌표 사용
+      const s = mapToContainSpace(start.x, start.y, videoW, videoH, displayWidth, displayHeight);
+      const e = mapToContainSpace(end.x, end.y, videoW, videoH, displayWidth, displayHeight);
 
       ctx.beginPath();
       ctx.moveTo(s.x, s.y);
@@ -181,8 +181,8 @@ export function PoseOverlay({
       const lm = landmarks[i];
       if (lm.visibility < 0.5) continue;
 
-      // object-fit: cover 보정된 좌표 사용
-      const { x, y } = mapToCoverSpace(lm.x, lm.y, videoW, videoH, displayWidth, displayHeight);
+      // object-fit: contain 보정된 좌표 사용
+      const { x, y } = mapToContainSpace(lm.x, lm.y, videoW, videoH, displayWidth, displayHeight);
 
       // 운동 카테고리에 따라 강조할 관절 결정
       const isHighlighted = highlightJoints.includes(i);
