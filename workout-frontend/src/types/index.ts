@@ -178,6 +178,38 @@ export type CameraStatus = 'IDLE' | 'REQUESTING' | 'ACTIVE' | 'DENIED' | 'ERROR'
 export type CameraMode = 'FRONT' | 'SIDE';
 export type LandmarkConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
+// ===== Back Exercise Types =====
+
+export type ExerciseCategory = 'SQUAT' | 'BACK';
+
+export type BackExerciseType =
+  | 'LAT_PULLDOWN'      // 랫풀다운 (측면)
+  | 'SEATED_ROW'        // 시티드 케이블 로우 / 머신 로우 (측면)
+  | 'STRAIGHT_ARM'      // 스트레이트암 풀다운 (측면)
+  | 'REAR_DELT';        // 리어 델트 머신/케이블 (정면)
+
+export type PullingPhase =
+  | 'EXTENDED'    // 시작 위치 (팔 뻗은 상태)
+  | 'PULLING'     // 당기는 중
+  | 'CONTRACTED'  // 최대 수축 위치
+  | 'RETURNING';  // 복귀 중
+
+// 운동별 권장 카메라 모드
+export const EXERCISE_CAMERA_MODE: Record<BackExerciseType, CameraMode> = {
+  LAT_PULLDOWN: 'SIDE',
+  SEATED_ROW: 'SIDE',
+  STRAIGHT_ARM: 'SIDE',
+  REAR_DELT: 'FRONT',
+};
+
+// 운동 이름 (한글)
+export const BACK_EXERCISE_NAMES: Record<BackExerciseType, string> = {
+  LAT_PULLDOWN: '랫풀다운',
+  SEATED_ROW: '시티드 로우',
+  STRAIGHT_ARM: '스트레이트암 풀다운',
+  REAR_DELT: '리어 델트',
+};
+
 export interface SquatCalibration {
   standingAngle: number;
   bottomAngle: number;
@@ -205,4 +237,46 @@ export interface PoseSessionState {
   lastFeedback: string[];
   sessionFormScores: number[];
   calibration: SquatCalibration;
+}
+
+// ===== Back Exercise Analysis Types =====
+
+export interface BackCalibration {
+  // 랫풀다운/로우: 시작점(extended)과 수축점(contracted)의 기준값
+  extendedPosition: number;     // 팔 뻗은 위치 (y좌표 또는 각도)
+  contractedPosition: number;   // 최대 수축 위치
+  torsoBaseAngle: number;       // 상체 기준 각도 (반동 감지용)
+  isCalibrated: boolean;
+}
+
+export interface BackAnalysis {
+  phase: PullingPhase;
+  repCount: number;
+  formScore: number;
+  feedback: string[];
+  confidence: LandmarkConfidence;
+  calibration: BackCalibration;
+  // 측정값들
+  currentRom: number;           // 현재 ROM (0-100%)
+  torsoSwing: number;           // 상체 흔들림 정도 (도)
+  tempo: number;                // 현재 rep 템포 (초)
+  asymmetry?: number;           // 좌우 비대칭 (정면 모드, %)
+}
+
+// 피드백 규칙 ID
+export type BackFeedbackRule =
+  | 'EXCESSIVE_MOMENTUM'    // 반동 과다
+  | 'TOO_FAST'              // 템포 너무 빠름
+  | 'ROM_INSUFFICIENT'      // ROM 부족
+  | 'SHOULDER_SHRUG'        // 어깨 으쓱
+  | 'ELBOW_BEND'            // 팔꿈치 굽힘 과다 (스트레이트암)
+  | 'ASYMMETRY'             // 좌우 비대칭
+  | 'WRIST_ISSUE'           // 손목 꺾임
+  | 'LOW_VISIBILITY'        // 가림/이탈
+  | 'GOOD_FORM';            // 좋은 폼
+
+export interface FeedbackMessage {
+  rule: BackFeedbackRule;
+  message: string;
+  severity: 'info' | 'warning' | 'error';
 }

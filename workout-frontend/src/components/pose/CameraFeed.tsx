@@ -9,6 +9,8 @@ interface CameraFeedProps {
   onVideoReady?: () => void;
   width?: number | string;
   height?: number | string;
+  /** 미러링 여부 - FRONT 모드에서 true, SIDE 모드에서 false 권장 */
+  mirrored?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ interface CameraFeedProps {
  * - PoseOverlay와 함께 사용하여 랜드마크 오버레이 표시
  */
 export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
-  ({ cameraStatus, error, onVideoReady, width = '100%', height = 'auto' }, ref) => {
+  ({ cameraStatus, error, onVideoReady, width = '100%', height = 'auto', mirrored = true }, ref) => {
     useEffect(() => {
       const videoElement = (ref as React.RefObject<HTMLVideoElement>)?.current;
       if (videoElement && cameraStatus === 'ACTIVE') {
@@ -59,7 +61,8 @@ export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            transform: 'scaleX(-1)', // 거울 모드
+            // FRONT 모드: 미러링 (거울처럼), SIDE 모드: 미러링 없음
+            transform: mirrored ? 'scaleX(-1)' : 'none',
             display: cameraStatus === 'ACTIVE' ? 'block' : 'none',
           }}
         />

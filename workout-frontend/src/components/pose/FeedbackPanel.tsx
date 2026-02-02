@@ -7,32 +7,55 @@ import {
   Speed,
   Straighten,
 } from '@mui/icons-material';
-import type { SquatPhase, LandmarkConfidence, SquatCalibration } from '../../types';
+import type {
+  SquatPhase,
+  PullingPhase,
+  LandmarkConfidence,
+  SquatCalibration,
+  BackCalibration,
+  ExerciseCategory,
+} from '../../types';
 
 interface FeedbackPanelProps {
-  phase: SquatPhase;
+  exerciseCategory: ExerciseCategory;
+  phase: SquatPhase | PullingPhase;
   kneeAngle: number;
   repCount: number;
   formScore: number;
   feedback: string[];
   fps: number;
   confidence: LandmarkConfidence;
-  calibration: SquatCalibration;
+  calibration?: SquatCalibration;
+  backCalibration?: BackCalibration;
   isDetecting: boolean;
 }
 
-const phaseLabels: Record<SquatPhase, string> = {
+const squatPhaseLabels: Record<SquatPhase, string> = {
   STANDING: '서 있음',
   DESCENDING: '내려가는 중',
   BOTTOM: '최저점',
   ASCENDING: '올라가는 중',
 };
 
-const phaseColors: Record<SquatPhase, 'success' | 'warning' | 'info' | 'secondary'> = {
+const pullingPhaseLabels: Record<PullingPhase, string> = {
+  EXTENDED: '시작 위치',
+  PULLING: '당기는 중',
+  CONTRACTED: '최대 수축',
+  RETURNING: '복귀 중',
+};
+
+const squatPhaseColors: Record<SquatPhase, 'success' | 'warning' | 'info' | 'secondary'> = {
   STANDING: 'success',
   DESCENDING: 'warning',
   BOTTOM: 'info',
   ASCENDING: 'secondary',
+};
+
+const pullingPhaseColors: Record<PullingPhase, 'success' | 'warning' | 'info' | 'secondary'> = {
+  EXTENDED: 'success',
+  PULLING: 'warning',
+  CONTRACTED: 'info',
+  RETURNING: 'secondary',
 };
 
 const confidenceConfig: Record<
@@ -45,15 +68,16 @@ const confidenceConfig: Record<
 };
 
 /**
- * FeedbackPanel: 실시간 스쿼트 분석 피드백을 표시하는 컴포넌트
- * 
- * - 현재 phase 및 무릎 각도 표시
- * - 반복 횟수 및 평균 폼 점수
+ * FeedbackPanel: 실시간 운동 분석 피드백을 표시하는 컴포넌트
+ *
+ * - 현재 phase 표시 (스쿼트/등운동 공용)
+ * - 반복 횟수 및 폼 점수
  * - 실시간 피드백 메시지
  * - 캘리브레이션 상태
  * - FPS 및 신뢰도 표시
  */
 export function FeedbackPanel({
+  exerciseCategory,
   phase,
   kneeAngle,
   repCount,
@@ -62,9 +86,27 @@ export function FeedbackPanel({
   fps,
   confidence,
   calibration,
+  backCalibration,
   isDetecting,
 }: FeedbackPanelProps) {
   const ConfidenceIcon = confidenceConfig[confidence].icon;
+
+  // 운동 카테고리에 따른 phase 라벨/색상
+  const phaseLabel =
+    exerciseCategory === 'SQUAT'
+      ? squatPhaseLabels[phase as SquatPhase]
+      : pullingPhaseLabels[phase as PullingPhase];
+
+  const phaseColor =
+    exerciseCategory === 'SQUAT'
+      ? squatPhaseColors[phase as SquatPhase]
+      : pullingPhaseColors[phase as PullingPhase];
+
+  // 캘리브레이션 상태
+  const isCalibrated =
+    exerciseCategory === 'SQUAT'
+      ? calibration?.isCalibrated ?? false
+      : backCalibration?.isCalibrated ?? false;
 
   return (
     <Box sx={{ p: 2 }}>
@@ -81,8 +123,8 @@ export function FeedbackPanel({
         >
           {/* Phase 칩 */}
           <Chip
-            label={phaseLabels[phase]}
-            color={phaseColors[phase]}
+            label={phaseLabel}
+            color={phaseColor}
             size="small"
             sx={{ fontWeight: 'bold' }}
           />
@@ -147,7 +189,7 @@ export function FeedbackPanel({
             </Typography>
           </Paper>
 
-          {/* 무릎 각도 */}
+          {/* 무릎 각도 (스쿼트만) 또는 진행 상태 (등운동) */}
           <Paper
             elevation={0}
             sx={{
@@ -158,43 +200,58 @@ export function FeedbackPanel({
             }}
           >
             <Straighten color="info" />
-            <Typography variant="h4" fontWeight="bold">
-              {Math.round(kneeAngle)}°
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              무릎 각도
-            </Typography>
+            {exerciseCategory === 'SQUAT' ? (
+              <>
+                <Typography variant="h4" fontWeight="bold">
+                  {Math.round(kneeAngle)}°
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  무릎 각도
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="h4" fontWeight="bold">
+                  {isCalibrated ? '준비됨' : '...'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  캘리브레이션
+                </Typography>
+              </>
+            )}
           </Paper>
         </Box>
 
-        {/* 깊이 진행바 */}
-        <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="caption" color="text.secondary">
-              깊이
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {kneeAngle < 90 ? '딥' : kneeAngle < 110 ? '평행' : '얕음'}
-            </Typography>
+        {/* 깊이 진행바 (스쿼트만 표시) */}
+        {exerciseCategory === 'SQUAT' && (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                깊이
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {kneeAngle < 90 ? '딥' : kneeAngle < 110 ? '평행' : '얕음'}
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={Math.max(0, Math.min(100, ((180 - kneeAngle) / 90) * 100))}
+              sx={{
+                height: 8,
+                borderRadius: 1,
+                bgcolor: 'grey.800',
+                '& .MuiLinearProgress-bar': {
+                  bgcolor:
+                    kneeAngle < 90
+                      ? 'success.main'
+                      : kneeAngle < 110
+                      ? 'info.main'
+                      : 'warning.main',
+                },
+              }}
+            />
           </Box>
-          <LinearProgress
-            variant="determinate"
-            value={Math.max(0, Math.min(100, ((180 - kneeAngle) / 90) * 100))}
-            sx={{
-              height: 8,
-              borderRadius: 1,
-              bgcolor: 'grey.800',
-              '& .MuiLinearProgress-bar': {
-                bgcolor:
-                  kneeAngle < 90
-                    ? 'success.main'
-                    : kneeAngle < 110
-                    ? 'info.main'
-                    : 'warning.main',
-              },
-            }}
-          />
-        </Box>
+        )}
 
         {/* 피드백 메시지 */}
         {feedback.length > 0 && (
@@ -228,7 +285,7 @@ export function FeedbackPanel({
         )}
 
         {/* 캘리브레이션 상태 */}
-        {!calibration.isCalibrated && isDetecting && (
+        {!isCalibrated && isDetecting && (
           <Box
             sx={{
               p: 1,
@@ -238,7 +295,9 @@ export function FeedbackPanel({
             }}
           >
             <Typography variant="caption" color="white">
-              캘리브레이션 중... 정확한 분석을 위해 3-5회 스쿼트를 수행해주세요
+              {exerciseCategory === 'SQUAT'
+                ? '캘리브레이션 중... 정확한 분석을 위해 3-5회 스쿼트를 수행해주세요'
+                : '캘리브레이션 중... 정확한 분석을 위해 3회 반복을 수행해주세요'}
             </Typography>
           </Box>
         )}

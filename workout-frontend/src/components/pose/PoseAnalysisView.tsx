@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -8,6 +8,11 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  Alert,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -17,13 +22,16 @@ import {
   RestartAlt,
   Person,
   PersonOutline,
+  FitnessCenter,
 } from '@mui/icons-material';
 
 import { useCamera } from '../../hooks/useCamera';
 import { usePoseDetection } from '../../hooks/usePoseDetection';
 import { useSquatAnalysis } from '../../hooks/useSquatAnalysis';
+import { useBackExerciseAnalysis } from '../../hooks/useBackExerciseAnalysis';
 import { usePoseStore, selectAverageFormScore } from '../../store/poseStore';
-import type { CameraMode } from '../../types';
+import type { CameraMode, ExerciseCategory, BackExerciseType } from '../../types';
+import { EXERCISE_CAMERA_MODE, BACK_EXERCISE_NAMES } from '../../types';
 
 import { CameraFeed } from './CameraFeed';
 import { PoseOverlay } from './PoseOverlay';
@@ -36,15 +44,15 @@ interface PoseAnalysisViewProps {
 
 /**
  * PoseAnalysisView: 포즈 분석 전체 UI를 통합하는 메인 컴포넌트
- * 
+ *
+ * - 운동 선택 UI (스쿼트/등운동)
  * - 카메라 피드 + 포즈 오버레이
  * - 실시간 피드백 패널
  * - 카메라 모드 전환 (정면/측면)
  * - 세션 시작/중지/리셋
  */
 export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [videoDimensions, setVideoDimensions] = useState({ width: 640, height: 480 });
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   // 카메라 훅
   const {
@@ -70,38 +78,47 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
   } = usePoseDetection(videoRef);
 
   // 스쿼트 분석 훅
-  const { analyze, resetAnalysis } = useSquatAnalysis();
+  const { analyze: analyzeSquat, resetAnalysis: resetSquatAnalysis } = useSquatAnalysis();
+
+  // 등 운동 분석 훅
+  const { analyze: analyzeBack, resetAnalysis: resetBackAnalysis } = useBackExerciseAnalysis();
 
   // 스토어 상태
   const {
+    exerciseCategory,
+    backExerciseType,
+    setExerciseCategory,
+    setBackExerciseType,
     currentPhase,
     currentKneeAngle,
+    pullingPhase,
     repCount,
     lastFeedback,
     sessionFormScores,
     calibration,
+    backCalibration,
     resetSession,
+    resetBackCalibration,
   } = usePoseStore();
 
   const averageFormScore = usePoseStore(selectAverageFormScore);
 
-  // 비디오 크기 업데이트
-  const handleVideoReady = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
-      setVideoDimensions({
-        width: video.videoWidth || 640,
-        height: video.videoHeight || 480,
-      });
-    }
-  }, [videoRef]);
+  // 운동 타입에 따른 권장 카메라 모드
+  const recommendedCameraMode =
+    exerciseCategory === 'BACK' ? EXERCISE_CAMERA_MODE[backExerciseType] : 'FRONT';
 
-  // 분석 실행
+  const isRecommendedMode = cameraMode === recommendedCameraMode;
+
+  // 분석 실행 (운동 카테고리에 따라 분기)
   useEffect(() => {
     if (isDetecting && landmarks) {
-      analyze(landmarks);
+      if (exerciseCategory === 'SQUAT') {
+        analyzeSquat(landmarks);
+      } else {
+        analyzeBack(landmarks, backExerciseType);
+      }
     }
-  }, [isDetecting, landmarks, analyze]);
+  }, [isDetecting, landmarks, exerciseCategory, backExerciseType, analyzeSquat, analyzeBack]);
 
   // 세션 시작
   const handleStart = useCallback(async () => {
@@ -126,8 +143,13 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
   // 세션 리셋
   const handleReset = useCallback(() => {
     resetSession();
-    resetAnalysis();
-  }, [resetSession, resetAnalysis]);
+    if (exerciseCategory === 'SQUAT') {
+      resetSquatAnalysis();
+    } else {
+      resetBackAnalysis();
+      resetBackCalibration();
+    }
+  }, [resetSession, exerciseCategory, resetSquatAnalysis, resetBackAnalysis, resetBackCalibration]);
 
   // 카메라 모드 변경
   const handleCameraModeChange = useCallback(
@@ -137,6 +159,33 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
       }
     },
     [setCameraMode]
+  );
+
+  // 운동 카테고리 변경
+  const handleExerciseCategoryChange = useCallback(
+    (_: React.MouseEvent<HTMLElement>, newCategory: ExerciseCategory | null) => {
+      if (newCategory) {
+        setExerciseCategory(newCategory);
+        // 권장 카메라 모드로 자동 전환
+        if (newCategory === 'SQUAT') {
+          setCameraMode('FRONT');
+        } else {
+          setCameraMode(EXERCISE_CAMERA_MODE[backExerciseType]);
+        }
+      }
+    },
+    [setExerciseCategory, setCameraMode, backExerciseType]
+  );
+
+  // 등 운동 타입 변경
+  const handleBackExerciseChange = useCallback(
+    (event: { target: { value: unknown } }) => {
+      const newType = event.target.value as BackExerciseType;
+      setBackExerciseType(newType);
+      // 권장 카메라 모드로 자동 전환
+      setCameraMode(EXERCISE_CAMERA_MODE[newType]);
+    },
+    [setBackExerciseType, setCameraMode]
   );
 
   // 언마운트 시 정리
@@ -156,7 +205,6 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
 
   return (
     <Box
-      ref={containerRef}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -169,19 +217,80 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
       {/* 헤더 */}
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
           p: 1.5,
           borderBottom: 1,
           borderColor: 'divider',
         }}
       >
-        <Typography variant="h6" fontWeight="bold">
-          스쿼트 자세 분석
-        </Typography>
+        {/* 상단: 제목 + 닫기 */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 1.5,
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            {exerciseCategory === 'SQUAT'
+              ? '스쿼트 자세 분석'
+              : `${BACK_EXERCISE_NAMES[backExerciseType]} 자세 분석`}
+          </Typography>
 
-        <Stack direction="row" spacing={1}>
+          {onClose && (
+            <IconButton onClick={onClose} size="small">
+              <Close />
+            </IconButton>
+          )}
+        </Box>
+
+        {/* 운동 선택 + 카메라 모드 */}
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+          {/* 운동 카테고리 토글 */}
+          <ToggleButtonGroup
+            value={exerciseCategory}
+            exclusive
+            onChange={handleExerciseCategoryChange}
+            size="small"
+            disabled={isActive}
+          >
+            <ToggleButton value="SQUAT">
+              <Tooltip title="스쿼트">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <FitnessCenter fontSize="small" />
+                  <Typography variant="caption">하체</Typography>
+                </Box>
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="BACK">
+              <Tooltip title="등 운동">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <FitnessCenter fontSize="small" />
+                  <Typography variant="caption">등</Typography>
+                </Box>
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* 등 운동 세부 선택 */}
+          {exerciseCategory === 'BACK' && (
+            <FormControl size="small" sx={{ minWidth: 140 }} disabled={isActive}>
+              <Select
+                value={backExerciseType}
+                onChange={handleBackExerciseChange}
+                displayEmpty
+                sx={{ fontSize: '0.875rem' }}
+              >
+                <MenuItem value="SEATED_ROW">{BACK_EXERCISE_NAMES.SEATED_ROW}</MenuItem>
+                <MenuItem value="REAR_DELT">{BACK_EXERCISE_NAMES.REAR_DELT}</MenuItem>
+                <MenuItem value="LAT_PULLDOWN">{BACK_EXERCISE_NAMES.LAT_PULLDOWN}</MenuItem>
+                <MenuItem value="STRAIGHT_ARM">{BACK_EXERCISE_NAMES.STRAIGHT_ARM}</MenuItem>
+              </Select>
+            </FormControl>
+          )}
+
+          <Box sx={{ flex: 1 }} />
+
           {/* 카메라 모드 토글 */}
           <ToggleButtonGroup
             value={cameraMode}
@@ -201,39 +310,63 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
               </Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
-
-          {/* 닫기 버튼 */}
-          {onClose && (
-            <IconButton onClick={onClose} size="small">
-              <Close />
-            </IconButton>
-          )}
         </Stack>
+
+        {/* 권장 카메라 모드 안내 */}
+        {!isActive && !isRecommendedMode && (
+          <Alert severity="info" sx={{ mt: 1, py: 0.5 }}>
+            {exerciseCategory === 'BACK'
+              ? `${BACK_EXERCISE_NAMES[backExerciseType]}은(는) ${
+                  recommendedCameraMode === 'SIDE' ? '측면' : '정면'
+                } 카메라를 권장합니다`
+              : '스쿼트는 정면 카메라를 권장합니다'}
+          </Alert>
+        )}
       </Box>
 
       {/* 카메라 피드 + 오버레이 */}
-      <Box sx={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      <Box
+        ref={videoContainerRef}
+        sx={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}
+      >
         <CameraFeed
           ref={videoRef}
           cameraStatus={cameraStatus}
           error={cameraError || poseError}
-          onVideoReady={handleVideoReady}
           width="100%"
           height="100%"
+          mirrored={cameraMode === 'FRONT'}
         />
 
         {/* 포즈 오버레이 */}
         {isActive && landmarks && (
           <PoseOverlay
             landmarks={landmarks}
-            phase={currentPhase}
-            videoWidth={videoDimensions.width}
-            videoHeight={videoDimensions.height}
-            mirrored={true}
+            phase={exerciseCategory === 'SQUAT' ? currentPhase : pullingPhase}
+            exerciseCategory={exerciseCategory}
+            containerRef={videoContainerRef}
+            videoRef={videoRef}
+            mirrored={cameraMode === 'FRONT'}
           />
         )}
 
-        {/* 카메라 전환 버튼 (활성 상태에서만) */}
+        {/* FPS 표시 (좌상단) */}
+        {isActive && (
+          <Chip
+            label={`${fps} FPS`}
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              bgcolor: 'rgba(0,0,0,0.6)',
+              color: 'white',
+              fontWeight: 'bold',
+            }}
+          />
+        )}
+
+        {/* 카메라 전환 버튼 (우상단) */}
         {isActive && (
           <IconButton
             onClick={switchCamera}
@@ -273,7 +406,8 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
       {/* 피드백 패널 */}
       <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
         <FeedbackPanel
-          phase={currentPhase}
+          exerciseCategory={exerciseCategory}
+          phase={exerciseCategory === 'SQUAT' ? currentPhase : pullingPhase}
           kneeAngle={currentKneeAngle}
           repCount={repCount}
           formScore={lastFormScore}
@@ -288,7 +422,8 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
                 : 'LOW'
               : 'LOW'
           }
-          calibration={calibration}
+          calibration={exerciseCategory === 'SQUAT' ? calibration : undefined}
+          backCalibration={exerciseCategory === 'BACK' ? backCalibration : undefined}
           isDetecting={isDetecting}
         />
       </Box>
@@ -342,9 +477,13 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
       {!isActive && (
         <Box sx={{ px: 2, pb: 2 }}>
           <Typography variant="caption" color="text.secondary" textAlign="center" display="block">
-            {cameraMode === 'FRONT'
-              ? '정면 모드: 무릎 방향, 좌우 균형을 분석합니다'
-              : '측면 모드: 무릎 위치, 상체 기울기를 분석합니다'}
+            {exerciseCategory === 'SQUAT'
+              ? cameraMode === 'FRONT'
+                ? '정면 모드: 무릎 방향, 좌우 균형을 분석합니다'
+                : '측면 모드: 무릎 위치, 상체 기울기를 분석합니다'
+              : cameraMode === 'SIDE'
+              ? '측면 모드: 팔꿈치 궤적, 상체 반동을 분석합니다'
+              : '정면 모드: 좌우 대칭, 팔 경로를 분석합니다'}
           </Typography>
         </Box>
       )}
