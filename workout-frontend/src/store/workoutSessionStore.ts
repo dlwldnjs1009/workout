@@ -10,6 +10,7 @@ interface WorkoutSessionState {
   restTimerDuration: number;
   isRestTimerRunning: boolean;
   restTimerStartedAt: number | null;
+  restTimerFinished: boolean;
 
   wipSession: any | null;
   activeRoutineId: number | null;
@@ -23,6 +24,7 @@ interface WorkoutSessionState {
   stopRestTimer: () => void;
   setRestTimerDuration: (seconds: number) => void;
   updateRestTimer: () => void;
+  dismissRestTimerAlert: () => void;
 
   saveWipSession: (session: any) => void;
   clearWipSession: () => void;
@@ -41,6 +43,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
       restTimerDuration: 90,
       isRestTimerRunning: false,
       restTimerStartedAt: null,
+      restTimerFinished: false,
 
       wipSession: null,
       activeRoutineId: null,
@@ -82,6 +85,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
 
       setRestTimerDuration: (seconds) => set({ restTimerDuration: seconds }),
 
+      dismissRestTimerAlert: () => set({ restTimerFinished: false }),
+
       updateRestTimer: () => {
         const state = get();
         if (state.isRestTimerRunning && state.restTimerStartedAt) {
@@ -89,7 +94,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
           const remaining = Math.max(0, state.restTimerDuration - elapsed);
           
           if (remaining === 0) {
-            set({ isRestTimerRunning: false, restTimerSeconds: 0, restTimerStartedAt: null });
+            set({ isRestTimerRunning: false, restTimerSeconds: 0, restTimerStartedAt: null, restTimerFinished: true });
           } else {
             set({ restTimerSeconds: remaining });
           }
@@ -108,7 +113,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         activeRoutineId: null,
         restTimerSeconds: 0,
         isRestTimerRunning: false,
-        restTimerStartedAt: null
+        restTimerStartedAt: null,
+        restTimerFinished: false
       }),
       
       startRoutine: (id) => set({ activeRoutineId: id }),

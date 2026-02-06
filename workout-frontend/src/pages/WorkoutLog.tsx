@@ -23,6 +23,7 @@ import { workoutService } from '../services/workoutService';
 import type { WorkoutRoutine, WorkoutSession } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
+import { useRestTimerAlerts } from '../hooks/useRestTimerAlerts';
 import BottomSheet from '../components/BottomSheet';
 import VerticalScrollSelector from '../components/VerticalScrollSelector';
 import {HorizontalScrollSelector} from "../components/NumberInputSelector.tsx";
@@ -207,15 +208,17 @@ const PickerContent = ({
                     inputMode="decimal"
                     variant="standard"
                     sx={{ maxWidth: 200 }}
-                    inputProps={{
-                        style: { textAlign: 'center', fontSize: '2.5rem', fontWeight: 800 },
-                        pattern: type === 'weight' ? '[0-9]*\\.?[0-9]*' : '[0-9]*'
-                    }}
-                    InputProps={{
-                        disableUnderline: true,
-                        endAdornment: <InputAdornment position="end" sx={{ '& .MuiTypography-root': { fontWeight: 700, fontSize: '1.2rem' } }}>
-                            {type === 'weight' ? 'kg' : '회'}
-                        </InputAdornment>
+                    slotProps={{
+                        htmlInput: {
+                            style: { textAlign: 'center', fontSize: '2.5rem', fontWeight: 800 },
+                            pattern: type === 'weight' ? '[0-9]*\\.?[0-9]*' : '[0-9]*'
+                        },
+                        input: {
+                            disableUnderline: true,
+                            endAdornment: <InputAdornment position="end" sx={{ '& .MuiTypography-root': { fontWeight: 700, fontSize: '1.2rem' } }}>
+                                {type === 'weight' ? 'kg' : '회'}
+                            </InputAdornment>
+                        }
                     }}
                 />
             </Box>
@@ -544,6 +547,7 @@ const WorkoutLog = () => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [activePicker, setActivePicker] = useState<{ exerciseIndex: number, setIndex: number, type: 'reps' | 'weight' | 'rpe' } | null>(null);
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<number>>(new Set());
+  const { finished: restTimerAlertVisible, dismiss: dismissRestTimerAlert } = useRestTimerAlerts();
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false);
   const [poseAnalysisOpen, setPoseAnalysisOpen] = useState(false);
   const [lastPoseResult, setLastPoseResult] = useState<{ repCount: number; avgFormScore: number } | null>(null);
@@ -908,7 +912,7 @@ const WorkoutLog = () => {
             onClose={() => setTimerSettingsOpen(false)} 
             maxWidth="xs" 
             fullWidth
-            PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
+            slotProps={{ paper: { sx: { borderRadius: '24px', p: 1 } } }}
         >
             <DialogTitle fontWeight="800" sx={{ pb: 1, fontSize: '1.3rem' }}>휴식 타이머 설정</DialogTitle>
             <DialogContent sx={{ pt: 2 }}>
@@ -921,9 +925,11 @@ const WorkoutLog = () => {
                             const val = Math.max(0, parseInt(e.target.value) || 0);
                             setRestTimerDuration(val * 60 + (restTimerDuration % 60));
                         }}
-                        InputProps={{ 
-                            endAdornment: <InputAdornment position="end">분</InputAdornment>,
-                            sx: { borderRadius: '16px', fontWeight: 700, fontSize: '1.2rem' }
+                        slotProps={{
+                            input: {
+                                endAdornment: <InputAdornment position="end">분</InputAdornment>,
+                                sx: { borderRadius: '16px', fontWeight: 700, fontSize: '1.2rem' }
+                            }
                         }}
                         fullWidth
                         variant="outlined"
@@ -936,9 +942,11 @@ const WorkoutLog = () => {
                             const val = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
                             setRestTimerDuration(Math.floor(restTimerDuration / 60) * 60 + val);
                         }}
-                        InputProps={{ 
-                            endAdornment: <InputAdornment position="end">초</InputAdornment>,
-                            sx: { borderRadius: '16px', fontWeight: 700, fontSize: '1.2rem' }
+                        slotProps={{
+                            input: {
+                                endAdornment: <InputAdornment position="end">초</InputAdornment>,
+                                sx: { borderRadius: '16px', fontWeight: 700, fontSize: '1.2rem' }
+                            }
                         }}
                         fullWidth
                         variant="outlined"
@@ -1088,7 +1096,7 @@ const WorkoutLog = () => {
                   type="date"
                   fullWidth
                   {...register('date')}
-                  InputLabelProps={{ shrink: true }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: '16px' } }}
                 />
                 <TextField
@@ -1124,7 +1132,7 @@ const WorkoutLog = () => {
                         index={exIdx}
                         remove={handleRemove}
                         toggleExpand={toggleExpand}
-                        isExpanded={expandedExercises[exIdx] === true}
+                        isExpanded={expandedExercises[exIdx]}
                         openPicker={openPicker}
                         removeSet={removeSet}
                         addSet={addSet}
@@ -1198,11 +1206,13 @@ const WorkoutLog = () => {
           maxWidth="sm"
           fullWidth
           fullScreen={isMobile}
-          PaperProps={{
-            sx: {
-              borderRadius: isMobile ? 0 : '24px',
-              height: isMobile ? '100%' : '80vh',
-              maxHeight: isMobile ? '100%' : '700px',
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: isMobile ? 0 : '24px',
+                height: isMobile ? '100%' : '80vh',
+                maxHeight: isMobile ? '100%' : '700px',
+              },
             },
           }}
         >
@@ -1249,6 +1259,52 @@ const WorkoutLog = () => {
               닫기
             </Button>
           </Paper>
+        )}
+        {/* Rest Timer Alert Overlay */}
+        {restTimerAlertVisible && (
+          <Box
+            onClick={dismissRestTimerAlert}
+            sx={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(8px)',
+              cursor: 'pointer',
+              animation: 'restAlertPulse 1s ease-in-out infinite',
+              '@keyframes restAlertPulse': {
+                '0%, 100%': { bgcolor: 'rgba(0, 0, 0, 0.85)' },
+                '50%': { bgcolor: 'rgba(49, 130, 246, 0.25)' },
+              },
+            }}
+          >
+            <Typography
+              variant="h1"
+              sx={{
+                color: '#fff',
+                fontWeight: 900,
+                fontSize: { xs: '4rem', sm: '6rem' },
+                letterSpacing: '-0.04em',
+                textAlign: 'center',
+                mb: 2,
+              }}
+            >
+              휴식 끝!
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: 'rgba(255, 255, 255, 0.6)',
+                fontWeight: 600,
+              }}
+            >
+              탭하여 해제
+            </Typography>
+          </Box>
         )}
       </Box>
     </FormProvider>
