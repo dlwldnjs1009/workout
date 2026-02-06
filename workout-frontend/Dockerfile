@@ -14,8 +14,9 @@ RUN --mount=type=cache,target=/root/.npm \
 # 소스 코드 복사
 COPY . .
 
-# 프로덕션 빌드
-RUN npm run build
+# 프로덕션 빌드 (Vite 캐시 마운트로 재빌드 속도 향상)
+RUN --mount=type=cache,target=/app/node_modules/.vite \
+    npm run build
 
 # Stage 2: Nginx
 FROM nginx:1.25-alpine
