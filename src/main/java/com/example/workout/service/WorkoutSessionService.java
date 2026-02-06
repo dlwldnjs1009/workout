@@ -16,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -38,14 +37,6 @@ public class WorkoutSessionService {
 	private User getUser(String username) {
 		return userRepository.findByUsername(username)
 			.orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다: " + username));
-	}
-
-	private ZoneId parseZoneId(String tz) {
-		try {
-			return ZoneId.of(tz);
-		} catch (DateTimeException e) {
-			return DEFAULT_ZONE;
-		}
 	}
 
     @Transactional
@@ -194,10 +185,7 @@ public class WorkoutSessionService {
         for (int i = 0; i < 365; i++) {
             LocalDate date = startDate.plusDays(i);
             long count = countsByDate.getOrDefault(date, 0L);
-            if (count == 0) levels[i] = 0;
-            else if (count == 1) levels[i] = 1;
-            else if (count <= 2) levels[i] = 2;
-            else levels[i] = 3;
+            levels[i] = count > 0 ? 3 : 0;
         }
         List<Integer> heatmapLevels = Arrays.stream(levels).boxed().collect(Collectors.toList());
 
