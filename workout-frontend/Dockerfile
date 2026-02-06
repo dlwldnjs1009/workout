@@ -1,32 +1,14 @@
 # syntax=docker/dockerfile:1
 
-# Stage 1: React 빌드
-FROM node:20-alpine AS build
-WORKDIR /app
-
-# package 파일 복사
-COPY package*.json ./
-
-# 의존성 설치 (npm 캐시 마운트 사용)
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund
-
-# 소스 코드 복사
-COPY . .
-
-# 프로덕션 빌드 (Vite 캐시 마운트로 재빌드 속도 향상)
-RUN --mount=type=cache,target=/app/node_modules/.vite \
-    npm run build
-
-# Stage 2: Nginx
+# CI에서 미리 빌드된 dist/를 Nginx로 서빙
 FROM nginx:1.25-alpine
 WORKDIR /usr/share/nginx/html
 
 # 기본 파일 제거
 RUN rm -rf ./*
 
-# 빌드된 React 앱 복사
-COPY --from=build /app/dist .
+# 미리 빌드된 React 앱 복사 (CI에서 npm run build 완료된 상태)
+COPY dist .
 
 # Nginx 설정 복사
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
