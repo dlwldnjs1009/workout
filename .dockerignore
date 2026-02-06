@@ -1,0 +1,16 @@
+workout-frontend
+.git
+.github
+.gradle
+build
+*.md
+.DS_Store
+.env*
+.vscode
+.idea
+.claude
+.serena
+docs
+load-tests
+datadog
+monitoring
