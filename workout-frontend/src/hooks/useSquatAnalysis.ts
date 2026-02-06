@@ -10,10 +10,11 @@ import type {
 import { POSE_LANDMARKS } from '../types';
 
 // ===== 기본 임계값 (캘리브레이션 전) =====
+// P1-C: 임계값 완화 - 캘리브레이션 전에도 카운트 가능하도록
 const DEFAULT_THRESHOLDS = {
-  STANDING: 160,
-  DESCENDING: 140,
-  BOTTOM: 120,
+  STANDING: 155,   // 160 → 155 (더 쉽게 STANDING 인정)
+  DESCENDING: 145, // 140 → 145
+  BOTTOM: 130,     // 120 → 130 (더 쉽게 BOTTOM 인정)
 };
 
 // 상태 전환 히스테리시스 (노이즈 방지)
@@ -21,6 +22,12 @@ const HYSTERESIS = 5;
 
 // 최소 반복 시간 (ms) - 너무 빠른 반복 방지
 const MIN_REP_DURATION = 800;
+
+// Phase 안정화: 연속 N프레임 동안 같은 phase여야 전환
+const PHASE_STABLE_FRAMES = 2;
+
+// 유효성 검사 연속 실패 허용 횟수
+const MAX_INVALID_STREAK = 5;
 
 interface UseSquatAnalysisReturn {
   analyze: (landmarks: PoseLandmark[]) => void;
@@ -55,6 +62,13 @@ export function useSquatAnalysis(): UseSquatAnalysisReturn {
   const lastPhaseRef = useRef<SquatPhase>('STANDING');
   const lastRepTimeRef = useRef<number>(0);
   const lastKneeAngleRef = useRef<number>(180);
+
+  // Phase 안정화를 위한 상태
+  const candidatePhaseRef = useRef<SquatPhase>('STANDING');
+  const phaseStableCountRef = useRef(0);
+
+  // 유효성 검사 연속 실패 카운터
+  const invalidFrameStreakRef = useRef(0);
 
   // 스무딩을 위한 이전 값 저장
   const angleHistoryRef = useRef<number[]>([]);
@@ -341,12 +355,17 @@ export function useSquatAnalysis(): UseSquatAnalysisReturn {
    */
   const analyze = useCallback(
     (landmarks: PoseLandmark[]) => {
-      // 1. 유효성 검사
+      // 1. 유효성 검사 (연속 실패 카운터 적용)
       const validity = checkLandmarkValidity(landmarks);
       if (!validity.isValid) {
-        setFeedback(validity.message ? [validity.message] : []);
+        invalidFrameStreakRef.current += 1;
+        // 연속 실패 시에만 피드백 표시 (간헐적 가림은 무시)
+        if (invalidFrameStreakRef.current >= MAX_INVALID_STREAK) {
+          setFeedback(validity.message ? [validity.message] : []);
+        }
         return;
       }
+      invalidFrameStreakRef.current = 0; // 성공 시 리셋
 
       // 2. 무릎 각도 계산 + 스무딩
       const rawKneeAngle = calculateKneeAngle(landmarks);
@@ -355,8 +374,23 @@ export function useSquatAnalysis(): UseSquatAnalysisReturn {
       // 3. 임계값 결정
       const thresholds = getThresholds(calibration);
 
-      // 4. phase 결정
-      const newPhase = determinePhase(kneeAngle, lastPhaseRef.current, thresholds);
+      // 4. phase 결정 (안정화 적용: 연속 N프레임 확인)
+      const candidatePhase = determinePhase(kneeAngle, lastPhaseRef.current, thresholds);
+      
+      let newPhase: SquatPhase;
+      if (candidatePhase === candidatePhaseRef.current) {
+        phaseStableCountRef.current += 1;
+      } else {
+        candidatePhaseRef.current = candidatePhase;
+        phaseStableCountRef.current = 1;
+      }
+
+      // 연속 프레임 조건 충족 시 phase 확정
+      if (phaseStableCountRef.current >= PHASE_STABLE_FRAMES) {
+        newPhase = candidatePhase;
+      } else {
+        newPhase = lastPhaseRef.current; // 아직 확정 안 됨, 이전 phase 유지
+      }
 
       // 5. 캘리브레이션 샘플 수집
       addCalibrationSample(newPhase, kneeAngle);
@@ -420,6 +454,10 @@ export function useSquatAnalysis(): UseSquatAnalysisReturn {
     lastKneeAngleRef.current = 180;
     angleHistoryRef.current = [];
     calibrationSamples.current = { standing: [], bottom: [] };
+    // Phase 안정화 상태 초기화
+    candidatePhaseRef.current = 'STANDING';
+    phaseStableCountRef.current = 0;
+    invalidFrameStreakRef.current = 0;
   }, []);
 
   return {

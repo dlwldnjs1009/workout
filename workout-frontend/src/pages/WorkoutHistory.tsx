@@ -52,7 +52,7 @@ const SessionItem = memo(({ session, onNavigate, onDelete, onRepeat, dividerColo
             {session.notes || '운동 세션'}
           </Typography>
           <Typography variant="body2" color="text.secondary" fontWeight="500">
-            {session.duration}분 · {exerciseCount}개 종목
+            {exerciseCount}개 종목
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>

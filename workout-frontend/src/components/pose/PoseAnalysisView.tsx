@@ -328,20 +328,90 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
           />
         )}
 
-        {/* FPS 표시 (좌상단) */}
+        {/* FPS + 디버그 정보 표시 (좌상단) */}
         {isActive && (
-          <Chip
-            label={`${fps} FPS`}
-            size="small"
+          <Box
             sx={{
               position: 'absolute',
               top: 8,
               left: 8,
-              bgcolor: 'rgba(0,0,0,0.6)',
-              color: 'white',
-              fontWeight: 'bold',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.5,
             }}
-          />
+          >
+            <Chip
+              label={`${fps} FPS`}
+              size="small"
+              sx={{
+                bgcolor: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                fontWeight: 'bold',
+              }}
+            />
+            {/* 디버그 오버레이: Phase, 각도, 캘리브레이션 상태 */}
+            {import.meta.env.DEV && (
+              <Box
+                sx={{
+                  bgcolor: 'rgba(0,0,0,0.75)',
+                  color: 'white',
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  fontSize: '0.7rem',
+                  fontFamily: 'monospace',
+                  lineHeight: 1.4,
+                }}
+              >
+                {exerciseCategory === 'SQUAT' ? (
+                  <>
+                    <Box>Phase: {currentPhase}</Box>
+                    <Box>
+                      Angle: {currentKneeAngle.toFixed(0)}°
+                      {!calibration.isCalibrated && (
+                        <span style={{ color: '#ffa726' }}> (목표: &lt;125°)</span>
+                      )}
+                      {calibration.isCalibrated && (
+                        <span style={{ color: '#66bb6a' }}>
+                          {' '}
+                          (목표: &lt;{(calibration.bottomAngle + (calibration.standingAngle - calibration.bottomAngle) * 0.2 + 5).toFixed(0)}°)
+                        </span>
+                      )}
+                    </Box>
+                    <Box>
+                      Cal:{' '}
+                      {calibration.isCalibrated ? (
+                        <span style={{ color: '#66bb6a' }}>✓ 완료</span>
+                      ) : (
+                        <span style={{ color: '#ffa726' }}>수집중</span>
+                      )}
+                    </Box>
+                  </>
+                ) : (
+                  <>
+                    <Box>Phase: {pullingPhase}</Box>
+                    <Box>
+                      Cal:{' '}
+                      {backCalibration.isCalibrated ? (
+                        <span style={{ color: '#66bb6a' }}>✓ 완료</span>
+                      ) : (
+                        <span style={{ color: '#ffa726' }}>수집중</span>
+                      )}
+                    </Box>
+                  </>
+                )}
+                <Box>
+                  Vis:{' '}
+                  {landmarks
+                    ? (
+                        landmarks.reduce((sum, l) => sum + l.visibility, 0) /
+                        landmarks.length
+                      ).toFixed(2)
+                    : '-'}
+                </Box>
+              </Box>
+            )}
+          </Box>
         )}
 
         {/* 카메라 전환 버튼 (우상단) */}

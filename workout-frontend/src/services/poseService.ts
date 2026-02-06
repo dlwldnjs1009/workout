@@ -18,7 +18,7 @@ type RunningMode = 'IMAGE' | 'VIDEO';
  * 싱글톤 패턴으로 구현하여 앱 전체에서 하나의 인스턴스만 사용
  * GPU 가속을 사용하며, VIDEO 모드로 실시간 프레임 처리 지원
  */
-class PoseService {
+export class PoseService {
   private poseLandmarker: PoseLandmarker | null = null;
   private isInitializing = false;
   private initPromise: Promise<void> | null = null;
@@ -39,7 +39,7 @@ class PoseService {
 
     this.isInitializing = true;
     this.initPromise = this.doInitialize();
-    
+
     try {
       await this.initPromise;
     } finally {

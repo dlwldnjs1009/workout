@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Typography, Paper, Grid, Chip, IconButton, CircularProgress } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { workoutService } from '../services/workoutService';
-import type { WorkoutSession } from '../types';
+import type { WorkoutSession, ExerciseRecord } from '../types';
 import { format } from 'date-fns';
 
 const SessionDetail = () => {
@@ -29,6 +29,10 @@ const SessionDetail = () => {
 
   if (loading) return <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress /></Box>;
   if (!session) return <Box sx={{ p: 4 }}><Typography>세션을 찾을 수 없습니다</Typography></Box>;
+
+  const sortedRecords = [...(session.exercisesPerformed || [])].sort(
+    (a: ExerciseRecord, b: ExerciseRecord) => (a.id ?? 0) - (b.id ?? 0)
+  );
 
   return (
     <Box>
@@ -64,8 +68,8 @@ const SessionDetail = () => {
 
       {/* Exercise details */}
       <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>운동 상세</Typography>
-      {session.exercisesPerformed?.map((record, idx) => (
-        <Paper key={idx} sx={{ p: 3, mb: 2, borderRadius: '16px' }}>
+      {sortedRecords.map((record) => (
+        <Paper key={record.id} sx={{ p: 3, mb: 2, borderRadius: '16px' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" fontWeight="bold">{record.exerciseName}</Typography>
             <Chip label={`세트 ${record.setNumber}`} size="small" />
@@ -80,8 +84,8 @@ const SessionDetail = () => {
               <Typography variant="h6">{record.weight || 0}kg</Typography>
             </Grid>
             <Grid size={{ xs: 4 }}>
-              <Typography variant="body2" color="text.secondary">시간</Typography>
-              <Typography variant="h6">{record.duration || 0}분</Typography>
+              <Typography variant="body2" color="text.secondary">RPE</Typography>
+              <Typography variant="h6">{record.rpe ?? '-'}</Typography>
             </Grid>
           </Grid>
         </Paper>

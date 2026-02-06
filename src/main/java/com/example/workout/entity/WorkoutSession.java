@@ -2,11 +2,10 @@ package com.example.workout.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Entity
@@ -45,7 +44,8 @@ public class WorkoutSession {
     private String notes;
 
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<ExerciseRecord> exercisesPerformed = new HashSet<>();
+    @OrderBy("id ASC")
+    private Set<ExerciseRecord> exercisesPerformed = new LinkedHashSet<>();
 
     @PrePersist
     protected void onCreate() {

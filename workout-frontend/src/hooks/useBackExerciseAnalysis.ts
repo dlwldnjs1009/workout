@@ -45,6 +45,12 @@ const THRESHOLDS = {
 // 캘리브레이션 샘플 수
 const CALIBRATION_SAMPLES_NEEDED = 3;
 
+// Phase 안정화: 연속 N프레임 동안 같은 phase여야 전환
+const PHASE_STABLE_FRAMES = 2;
+
+// 유효성 검사 연속 실패 허용 횟수
+const MAX_INVALID_STREAK = 5;
+
 interface UseBackExerciseAnalysisReturn {
   analyze: (landmarks: PoseLandmark[], exerciseType: BackExerciseType) => void;
   resetAnalysis: () => void;
@@ -80,6 +86,13 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
   const lastPhaseRef = useRef<PullingPhase>('EXTENDED');
   const lastRepTimeRef = useRef<number>(0);
   const repStartTimeRef = useRef<number>(0);
+
+  // Phase 안정화를 위한 상태
+  const candidatePhaseRef = useRef<PullingPhase>('EXTENDED');
+  const phaseStableCountRef = useRef(0);
+
+  // 유효성 검사 연속 실패 카운터
+  const invalidFrameStreakRef = useRef(0);
 
   // 스무딩용 히스토리
   const torsoAngleHistoryRef = useRef<number[]>([]);
@@ -281,6 +294,7 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
 
   /**
    * 로우(측면) phase 결정
+   * P1-C: CONTRACTED 진입 조건 완화 (80% → 70%)
    */
   const determineRowPhase = useCallback(
     (
@@ -305,15 +319,15 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
           if (pullRatio > 40) return 'PULLING';
           break;
         case 'PULLING':
-          if (pullRatio >= 80) return 'CONTRACTED';
+          if (pullRatio >= 70) return 'CONTRACTED'; // 80 → 70
           if (pullRatio < 30) return 'EXTENDED';
           break;
         case 'CONTRACTED':
-          if (pullRatio < 70) return 'RETURNING';
+          if (pullRatio < 60) return 'RETURNING'; // 70 → 60 (대칭적 완화)
           break;
         case 'RETURNING':
           if (pullRatio < 30) return 'EXTENDED';
-          if (pullRatio > 70) return 'CONTRACTED';
+          if (pullRatio > 60) return 'CONTRACTED'; // 70 → 60
           break;
       }
 
@@ -324,6 +338,7 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
 
   /**
    * 리어델트(정면) phase 결정
+   * P1-C: CONTRACTED 진입 조건 완화 (80% → 70%)
    */
   const determineRearDeltPhase = useCallback(
     (
@@ -346,15 +361,15 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
           if (spreadRatio > 40) return 'PULLING';
           break;
         case 'PULLING':
-          if (spreadRatio >= 80) return 'CONTRACTED';
+          if (spreadRatio >= 70) return 'CONTRACTED'; // 80 → 70
           if (spreadRatio < 30) return 'EXTENDED';
           break;
         case 'CONTRACTED':
-          if (spreadRatio < 70) return 'RETURNING';
+          if (spreadRatio < 60) return 'RETURNING'; // 70 → 60
           break;
         case 'RETURNING':
           if (spreadRatio < 30) return 'EXTENDED';
-          if (spreadRatio > 70) return 'CONTRACTED';
+          if (spreadRatio > 60) return 'CONTRACTED'; // 70 → 60
           break;
       }
 
@@ -366,6 +381,7 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
   /**
    * 랫풀다운/스트레이트암(측면) phase 결정
    * 손목 Y 좌표 기반 (아래로 내려갈수록 Y 증가)
+   * P1-C: CONTRACTED 진입 조건 완화 (80% → 70%)
    */
   const determineVerticalPullPhase = useCallback(
     (
@@ -390,15 +406,15 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
           if (pullRatio > 40) return 'PULLING';
           break;
         case 'PULLING':
-          if (pullRatio >= 80) return 'CONTRACTED';
+          if (pullRatio >= 70) return 'CONTRACTED'; // 80 → 70
           if (pullRatio < 30) return 'EXTENDED';
           break;
         case 'CONTRACTED':
-          if (pullRatio < 70) return 'RETURNING';
+          if (pullRatio < 60) return 'RETURNING'; // 70 → 60
           break;
         case 'RETURNING':
           if (pullRatio < 30) return 'EXTENDED';
-          if (pullRatio > 70) return 'CONTRACTED';
+          if (pullRatio > 60) return 'CONTRACTED'; // 70 → 60
           break;
       }
 
@@ -541,12 +557,17 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
    */
   const analyze = useCallback(
     (landmarks: PoseLandmark[], exerciseType: BackExerciseType) => {
-      // 1. 유효성 검사
+      // 1. 유효성 검사 (연속 실패 카운터 적용)
       const validity = checkValidity(landmarks, exerciseType);
       if (!validity.isValid) {
-        setFeedback(validity.message ? [validity.message] : []);
+        invalidFrameStreakRef.current += 1;
+        // 연속 실패 시에만 피드백 표시 (간헐적 가림은 무시)
+        if (invalidFrameStreakRef.current >= MAX_INVALID_STREAK) {
+          setFeedback(validity.message ? [validity.message] : []);
+        }
         return;
       }
+      invalidFrameStreakRef.current = 0; // 성공 시 리셋
 
       const now = performance.now();
 
@@ -555,7 +576,7 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
       const smoothedTorsoAngle = smoothValue(torsoAngleHistoryRef.current, torsoAngle, 3);
 
       let positionValue: number;
-      let newPhase: PullingPhase;
+      let candidatePhase: PullingPhase;
       let asymmetry = 0;
 
       let elbowAngle = 180; // 스트레이트암용
@@ -564,7 +585,7 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
         // 정면 모드: 손목 벌어짐
         const wristSpread = getWristSpread(landmarks);
         positionValue = smoothValue(wristSpreadHistoryRef.current, wristSpread, 3);
-        newPhase = determineRearDeltPhase(positionValue, lastPhaseRef.current, backCalibration);
+        candidatePhase = determineRearDeltPhase(positionValue, lastPhaseRef.current, backCalibration);
         asymmetry = calculateBodyAsymmetry(landmarks);
       } else if (exerciseType === 'LAT_PULLDOWN' || exerciseType === 'STRAIGHT_ARM') {
         // 측면 모드: 손목 Y 좌표 (수직 당김)
@@ -573,7 +594,7 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
         const hipIdx = pickVisibleSide(landmarks, POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP);
         const hipY = landmarks[hipIdx].y;
         positionValue = smoothValue(wristYHistoryRef.current, wristY, 3);
-        newPhase = determineVerticalPullPhase(positionValue, hipY, lastPhaseRef.current, backCalibration);
+        candidatePhase = determineVerticalPullPhase(positionValue, hipY, lastPhaseRef.current, backCalibration);
 
         // 스트레이트암: 팔꿈치 각도 추적
         if (exerciseType === 'STRAIGHT_ARM') {
@@ -590,7 +611,22 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
         );
         const shoulderX = landmarks[shoulderIdx].x;
         positionValue = smoothValue(elbowXHistoryRef.current, elbowX, 3);
-        newPhase = determineRowPhase(positionValue, shoulderX, lastPhaseRef.current, backCalibration);
+        candidatePhase = determineRowPhase(positionValue, shoulderX, lastPhaseRef.current, backCalibration);
+      }
+
+      // Phase 안정화: 연속 N프레임 동안 같은 phase여야 전환
+      let newPhase: PullingPhase;
+      if (candidatePhase === candidatePhaseRef.current) {
+        phaseStableCountRef.current += 1;
+      } else {
+        candidatePhaseRef.current = candidatePhase;
+        phaseStableCountRef.current = 1;
+      }
+
+      if (phaseStableCountRef.current >= PHASE_STABLE_FRAMES) {
+        newPhase = candidatePhase;
+      } else {
+        newPhase = lastPhaseRef.current; // 아직 확정 안 됨, 이전 phase 유지
       }
 
       // 3. 캘리브레이션 샘플 수집
@@ -712,6 +748,10 @@ export function useBackExerciseAnalysis(): UseBackExerciseAnalysisReturn {
     elbowAngleHistoryRef.current = [];
     calibrationSamplesRef.current = { extended: [], contracted: [], torsoBase: [] };
     repMetricsRef.current = { maxTorsoSwing: 0, maxRom: 0, tempoMs: 0, minElbowAngle: 180 };
+    // Phase 안정화 상태 초기화
+    candidatePhaseRef.current = 'EXTENDED';
+    phaseStableCountRef.current = 0;
+    invalidFrameStreakRef.current = 0;
   }, []);
 
   return {

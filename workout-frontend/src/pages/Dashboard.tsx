@@ -158,10 +158,10 @@ const useDashboardData = () => {
   }, [selectedDate, dashboardData]);
 
   const selectedVolume = useMemo(() => {
-    if (!selectedDate || !dashboardData) return 0;
-    const point = dashboardData.volumeChartData.find(v => v.date === selectedDate);
-    return point ? point.volume : 0;
-  }, [selectedDate, dashboardData]);
+    return selectedSessions.reduce((total, session) =>
+      total + session.exercisesPerformed.reduce((sum, e) =>
+        sum + (e.weight || 0) * (e.reps || 0), 0), 0);
+  }, [selectedSessions]);
 
   return {
     dashboardData,
@@ -479,7 +479,7 @@ const RecentActivityList = memo<RecentActivityListProps>(({ sessions, isDark, on
                         {session.notes || "운동 세션"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {session.duration}분 · {new Set(session.exercisesPerformed.map(e => e.exerciseId)).size}개 종목
+                        {new Set(session.exercisesPerformed.map(e => e.exerciseId)).size}개 종목
                       </Typography>
                     </Box>
                   </Box>
@@ -662,7 +662,7 @@ const Dashboard = () => {
                           {session.notes || '운동 세션'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {session.duration}분 · {new Set(session.exercisesPerformed.map(e => e.exerciseId)).size}개 종목
+                          {new Set(session.exercisesPerformed.map(e => e.exerciseId)).size}개 종목
                         </Typography>
                       </Box>
                       <ArrowForwardIosIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
