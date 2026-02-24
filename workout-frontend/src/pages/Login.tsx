@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { Container, Box, Typography, TextField, Button, Alert, Paper, Link } from '@mui/material';
+import { Container, Box, Typography, TextField, Button, Alert, Paper, Link, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 
@@ -18,7 +18,8 @@ const Login = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
   const [error, setError] = useState<string | null>(null);
-  
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
@@ -26,6 +27,7 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null);
+      setErrorDetail(null);
       const response = await authService.login(data);
       const user = {
         id: response.id,
@@ -36,8 +38,16 @@ const Login = () => {
       setAuth(user, response.token);
       navigate('/');
     } catch (err: any) {
-      console.error(err);
-      setError('Invalid username or password');
+      const detail = JSON.stringify({
+        message: err?.message,
+        status: err?.response?.status,
+        statusText: err?.response?.statusText,
+        data: err?.response?.data,
+        code: err?.code,
+        url: err?.config?.baseURL + err?.config?.url,
+      }, null, 2);
+      setError('로그인 실패');
+      setErrorDetail(detail);
     }
   };
 
@@ -63,7 +73,53 @@ const Login = () => {
             </Typography>
           </Box>
           
-          {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert
+              severity="error"
+              sx={{ mb: 3, borderRadius: 2, cursor: 'pointer' }}
+              onClick={() => setErrorDetail(prev => prev ? prev : null)}
+            >
+              {error} — 탭하여 상세 보기
+            </Alert>
+          )}
+
+          <Dialog
+            open={!!errorDetail}
+            onClose={() => setErrorDetail(null)}
+            PaperProps={{
+              sx: { borderRadius: '24px', p: 1, minWidth: 320, maxWidth: '90vw' }
+            }}
+          >
+            <DialogTitle sx={{ fontWeight: 800, fontSize: '1.25rem', pt: 3 }}>
+              에러 상세
+            </DialogTitle>
+            <DialogContent>
+              <Box
+                component="pre"
+                sx={{
+                  bgcolor: 'action.hover',
+                  borderRadius: 2,
+                  p: 2,
+                  fontSize: '0.75rem',
+                  overflow: 'auto',
+                  maxHeight: '50vh',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {errorDetail}
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ p: 3 }}>
+              <Button
+                onClick={() => setErrorDetail(null)}
+                variant="contained"
+                sx={{ borderRadius: '12px', px: 3, py: 1.5, fontWeight: 700, boxShadow: 'none' }}
+              >
+                닫기
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
