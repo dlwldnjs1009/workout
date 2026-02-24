@@ -9,6 +9,9 @@ const config: CapacitorConfig = {
     allowNavigation: ['todayfit.site'],
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchAutoHide: true,
       androidScaleType: 'CENTER_CROP',
