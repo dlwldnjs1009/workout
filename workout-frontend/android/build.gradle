@@ -22,6 +22,14 @@ allprojects {
         google()
         mavenCentral()
     }
+    // kotlin-stdlib-jdk7/jdk8이 kotlin-stdlib 1.8+와 중복되는 문제 해결
+    configurations.all {
+        resolutionStrategy {
+            force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.25'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25'
+        }
+    }
 }
 
 task clean(type: Delete) {
