@@ -40,3 +40,7 @@ out/
 
 *.jfr
 repomix-output.xml
+
+### Android Keystore ###
+*.keystore
+*.jks

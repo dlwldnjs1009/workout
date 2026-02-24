@@ -1,0 +1,87 @@
+name: Android 빌드 및 배포
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workout-frontend/**'
+      - '.github/workflows/android-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      track:
+        description: '배포 트랙'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+env:
+  VERSION_CODE: ${{ github.run_number }}
+
+jobs:
+  build-android:
+    name: Android 빌드
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: workout-frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: 웹 빌드
+        working-directory: workout-frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Capacitor 동기화
+        working-directory: workout-frontend
+        run: npx cap sync android
+
+      - name: Keystore 디코딩
+        working-directory: workout-frontend/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
+
+      - name: Android 빌드 (AAB + APK)
+        working-directory: workout-frontend/android
+        env:
+          ANDROID_KEYSTORE_FILE: release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_NAME: "1.0.${{ github.run_number }}"
+        run: |
+          ./gradlew bundleRelease
+          ./gradlew assembleRelease
+
+      - name: 빌드 산출물 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: |
+            workout-frontend/android/app/build/outputs/bundle/release/*.aab
+            workout-frontend/android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      # Google Play 배포 (서비스 계정 설정 후 주석 해제)
+      # - name: Google Play 배포
+      #   uses: r0adkll/upload-google-play@v1
+      #   with:
+      #     serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+      #     packageName: com.todayfit.app
+      #     releaseFiles: workout-frontend/android/app/build/outputs/bundle/release/*.aab
+      #     track: ${{ inputs.track || 'internal' }}

@@ -34,8 +34,17 @@ export const getFieldErrors = (error: unknown): Record<string, string> | null =>
   return null;
 };
 
+import { Capacitor } from '@capacitor/core';
+
+const getBaseUrl = (): string => {
+  if (Capacitor.isNativePlatform()) {
+    return 'https://todayfit.site/api';
+  }
+  return '/api';
+};
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },

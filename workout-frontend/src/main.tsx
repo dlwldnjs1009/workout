@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
+import { Capacitor } from '@capacitor/core';
 import App from './App';
 
 declare const __APP_VERSION__: string;
@@ -20,6 +21,19 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
 });
+
+// Android 뒤로 가기 버튼 처리
+if (Capacitor.isNativePlatform()) {
+  import('@capacitor/app').then(({ App: CapApp }) => {
+    CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        CapApp.exitApp();
+      }
+    });
+  });
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
