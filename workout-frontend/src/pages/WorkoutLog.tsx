@@ -25,6 +25,7 @@ import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 import { useRestTimerAlerts } from '../hooks/useRestTimerAlerts';
 import BottomSheet from '../components/BottomSheet';
+import BottomCTA from '../components/BottomCTA';
 import VerticalScrollSelector from '../components/VerticalScrollSelector';
 import {HorizontalScrollSelector} from "../components/NumberInputSelector.tsx";
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -377,7 +378,7 @@ const ExerciseSetsList = ({
                         </Box>
                     </Box>
 
-                    <IconButton onClick={() => removeSet(exerciseIndex, sIdx)} size="small" sx={{ color: 'text.disabled' }}>
+                    <IconButton onClick={() => removeSet(exerciseIndex, sIdx)} size="small" aria-label="세트 삭제" sx={{ color: 'text.disabled' }}>
                         <DeleteOutlineIcon fontSize="small" />
                     </IconButton>
                 </Box>
@@ -478,7 +479,7 @@ const SortableExerciseItem = React.memo(({
                                 <ExerciseSetCount index={index} />
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <IconButton size="small" sx={{ mr: 1 }}>
+                                <IconButton size="small" aria-label={isExpanded ? '세부 사항 접기' : '세부 사항 펼치기'} sx={{ mr: 1 }}>
                                     {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                                 </IconButton>
                             </Box>
@@ -491,6 +492,7 @@ const SortableExerciseItem = React.memo(({
                             }}
                             color="error"
                             size="small"
+                            aria-label={`${exerciseName} 삭제`}
                             sx={{
                                 opacity: 0.6,
                                 '&:hover': { opacity: 1, bgcolor: 'error.light', color: 'error.contrastText' }
@@ -820,7 +822,7 @@ const WorkoutLog = () => {
 
   return (
     <FormProvider {...methods}>
-      <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ pb: 12 }}>
+      <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ pb: { xs: 24, md: 12 } }}>
         {isRestTimerRunning && (
             <Paper
                 elevation={4}
@@ -1148,32 +1150,45 @@ const WorkoutLog = () => {
                 </Box>
             )}
 
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              disabled={isSubmitting || fields.length === 0}
-              sx={{
-                  mt: 4,
-                  py: 2,
-                  borderRadius: '16px',
-                  fontSize: '1.1rem',
-                  fontWeight: 800,
-                  boxShadow: '0 8px 20px rgba(49, 130, 246, 0.3)',
-                  bgcolor: 'primary.main',
-                  '&:hover': { bgcolor: 'primary.dark' }
-              }}
-            >
-              기록 완료
-            </Button>
+            {!isMobile && (
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={isSubmitting || fields.length === 0}
+                sx={{
+                    mt: 4,
+                    py: 2,
+                    fontSize: '1.1rem',
+                    fontWeight: 800,
+                }}
+              >
+                기록 완료
+              </Button>
+            )}
           </Grid>
         </Grid>
 
         {isMobile && fields.length > 0 && (
-          <Fab 
-            color="primary" 
+          <BottomCTA>
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={isSubmitting}
+              sx={{ py: 1.75, fontSize: '1.05rem', fontWeight: 800 }}
+            >
+              기록 완료
+            </Button>
+          </BottomCTA>
+        )}
+
+        {isMobile && fields.length > 0 && (
+          <Fab
+            color="primary"
             variant="extended"
-            sx={{ position: 'fixed', bottom: 100, right: 16, zIndex: 1000, fontWeight: 700 }}
+            aria-label="활성 운동 목록으로 이동"
+            sx={{ position: 'fixed', bottom: 180, right: 16, zIndex: 1000, fontWeight: 700 }}
             onClick={() => {
                 document.getElementById('active-exercises')?.scrollIntoView({ behavior: 'smooth' });
             }}

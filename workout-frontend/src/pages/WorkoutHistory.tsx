@@ -60,6 +60,7 @@ const SessionItem = memo(({ session, onNavigate, onDelete, onRepeat, dividerColo
             size="small"
             color="primary"
             onClick={(e) => onRepeat(e, session)}
+            aria-label="이 세션 반복하기"
             sx={{ opacity: 0.7, '&:hover': { opacity: 1, bgcolor: 'rgba(49, 130, 246, 0.1)' } }}
           >
             <ReplayIcon fontSize="small" />
@@ -68,6 +69,7 @@ const SessionItem = memo(({ session, onNavigate, onDelete, onRepeat, dividerColo
             size="small"
             color="error"
             onClick={(e) => onDelete(e, session.id)}
+            aria-label="세션 삭제"
             sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
           >
             <DeleteOutlineIcon fontSize="small" />
@@ -172,11 +174,11 @@ const WorkoutHistory = () => {
             bgcolor: 'background.paper'
         }}
       >
-        <IconButton onClick={handlePrevMonth}><ChevronLeftIcon /></IconButton>
+        <IconButton onClick={handlePrevMonth} aria-label="이전 달"><ChevronLeftIcon /></IconButton>
         <Typography variant="h6" fontWeight="700">
             {format(currentDate, 'yyyy년 M월')}
         </Typography>
-        <IconButton onClick={handleNextMonth} disabled={isSameMonth(currentDate, new Date())}><ChevronRightIcon /></IconButton>
+        <IconButton onClick={handleNextMonth} disabled={isSameMonth(currentDate, new Date())} aria-label="다음 달"><ChevronRightIcon /></IconButton>
       </Paper>
 
       {loading ? (

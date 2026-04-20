@@ -184,11 +184,12 @@ const Routines = () => {
                   {routine.description}
                 </Typography>
               </Box>
-              <IconButton 
+              <IconButton
                 onClick={() => openDeleteConfirm(routine.id)}
                 disabled={deletingId === routine.id}
+                aria-label={`${routine.name} 루틴 삭제`}
                 size="small"
-                sx={{ 
+                sx={{
                   color: 'text.disabled',
                   '&:hover': { color: 'error.main', bgcolor: 'rgba(239, 68, 68, 0.1)' }
                 }}

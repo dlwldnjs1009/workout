@@ -19,6 +19,7 @@ const Login = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
   const [error, setError] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -28,6 +29,7 @@ const Login = () => {
     try {
       setError(null);
       setErrorDetail(null);
+      setDetailOpen(false);
       const response = await authService.login(data);
       const user = {
         id: response.id,
@@ -38,16 +40,23 @@ const Login = () => {
       setAuth(user, response.token);
       navigate('/');
     } catch (err: any) {
-      const detail = JSON.stringify({
-        message: err?.message,
-        status: err?.response?.status,
-        statusText: err?.response?.statusText,
-        data: err?.response?.data,
-        code: err?.code,
-        url: err?.config?.baseURL + err?.config?.url,
-      }, null, 2);
-      setError('로그인 실패');
-      setErrorDetail(detail);
+      const status = err?.response?.status;
+      const message = status === 401 || status === 403
+        ? '아이디 또는 비밀번호가 일치하지 않아요. 다시 확인해 주세요.'
+        : status >= 500
+          ? '일시적으로 서버와 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+          : '로그인에 실패했어요. 잠시 후 다시 시도해 주세요.';
+      setError(message);
+      if (import.meta.env.DEV) {
+        setErrorDetail(JSON.stringify({
+          message: err?.message,
+          status,
+          statusText: err?.response?.statusText,
+          data: err?.response?.data,
+          code: err?.code,
+          url: err?.config?.baseURL + err?.config?.url,
+        }, null, 2));
+      }
     }
   };
 
@@ -76,16 +85,16 @@ const Login = () => {
           {error && (
             <Alert
               severity="error"
-              sx={{ mb: 3, borderRadius: 2, cursor: 'pointer' }}
-              onClick={() => setErrorDetail(prev => prev ? prev : null)}
+              sx={{ mb: 3, borderRadius: 2, cursor: errorDetail ? 'pointer' : 'default' }}
+              onClick={errorDetail ? () => setDetailOpen(true) : undefined}
             >
-              {error} — 탭하여 상세 보기
+              {error}{errorDetail ? ' — 개발자 모드: 탭하여 상세 보기' : ''}
             </Alert>
           )}
 
           <Dialog
-            open={!!errorDetail}
-            onClose={() => setErrorDetail(null)}
+            open={detailOpen}
+            onClose={() => setDetailOpen(false)}
             PaperProps={{
               sx: { borderRadius: '24px', p: 1, minWidth: 320, maxWidth: '90vw' }
             }}
@@ -112,9 +121,9 @@ const Login = () => {
             </DialogContent>
             <DialogActions sx={{ p: 3 }}>
               <Button
-                onClick={() => setErrorDetail(null)}
+                onClick={() => setDetailOpen(false)}
                 variant="contained"
-                sx={{ borderRadius: '12px', px: 3, py: 1.5, fontWeight: 700, boxShadow: 'none' }}
+                sx={{ px: 3, py: 1.5, fontWeight: 700 }}
               >
                 닫기
               </Button>

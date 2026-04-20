@@ -44,7 +44,16 @@ const PALETTE = {
 
   // Semantic Colors
   ERROR: '#F04452',
-  SUCCESS: '#3182F6',
+  SUCCESS: '#1AA260',
+  WARNING: '#FFB800',
+} as const;
+
+// Data visualization palette — 카테고리 색. 시멘틱 컬러(Primary/Success/Warning)와 분리.
+export const DATA_COLORS = {
+  carb: '#3182F6',
+  protein: '#4E5968',
+  fat: '#8B95A1',
+  series: ['#3182F6', '#4E5968', '#8B95A1', '#B0B8C1', '#D1D6DB'] as const,
 } as const;
 
 // Toss-style sophisticated shadow system
@@ -115,7 +124,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       success: {
         main: PALETTE.SUCCESS,
       },
-      divider: isDark ? 'rgba(255, 255, 255, 0.08)' : PALETTE.BG_LIGHT,
+      divider: isDark ? 'rgba(255, 255, 255, 0.08)' : PALETTE.GREY_200_LIGHT,
     },
     typography: {
       fontFamily: [
@@ -190,7 +199,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       body1: {
         fontSize: '16px',
         color: isDark ? PALETTE.GREY_800_DARK : PALETTE.GREY_800_LIGHT,
-        lineHeight: 1.6
+        lineHeight: 1.5
       },
       body2: {
         fontSize: '14px',
@@ -216,15 +225,14 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: '20px',
+            borderRadius: '12px',
             padding: '12px 20px',
             fontSize: '16px',
             fontWeight: 600,
             boxShadow: 'none',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'background-color 0.15s ease, color 0.15s ease',
             '&:hover': {
               boxShadow: 'none',
-              transform: 'translateY(-1px)',
             },
             '&:active': {
               transform: 'scale(0.98)',
@@ -233,12 +241,10 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           containedPrimary: {
             backgroundColor: PALETTE.TOSS_BLUE,
             color: PALETTE.PAPER_LIGHT,
-            boxShadow: shadows.primary,
+            boxShadow: 'none',
             '&:hover': {
               backgroundColor: PALETTE.TOSS_BLUE_DARK,
-              boxShadow: isDark
-                ? '0 12px 28px rgba(49, 130, 246, 0.4)'
-                : '0 12px 28px rgba(49, 130, 246, 0.35)',
+              boxShadow: 'none',
             },
           },
           outlinedPrimary: {
@@ -252,7 +258,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           sizeLarge: {
             padding: '16px 28px',
             fontSize: '18px',
-            borderRadius: '24px',
+            borderRadius: '14px',
           },
         },
       },

@@ -19,6 +19,7 @@ import TodaySummaryCopy from '../components/TodaySummaryCopy';
 import EmptyState from "../components/EmptyState.tsx";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
+import { DATA_COLORS } from '../theme';
 
 const DashboardVolumeChart = lazy(() => import('../components/DashboardVolumeChart'));
 
@@ -214,20 +215,10 @@ const DashboardHeader = memo<DashboardHeaderProps>(({ greeting, username, isMobi
             startIcon={<AddCircleOutlineIcon />}
             onClick={onLogWorkout}
             sx={{
-              bgcolor: 'primary.main',
-              borderRadius: '16px',
               py: 1.5,
               px: 3,
               fontSize: '16px',
               fontWeight: 600,
-              textTransform: 'none',
-              boxShadow: '0 8px 24px rgba(49, 130, 246, 0.25)',
-              '&:hover': {
-                bgcolor: 'primary.dark',
-                boxShadow: '0 12px 28px rgba(49, 130, 246, 0.35)',
-                transform: 'translateY(-2px)',
-              },
-              transition: 'all 0.2s ease',
             }}
           >
             운동 기록하기
@@ -322,9 +313,9 @@ const DietSection = memo<DietSectionProps>(({ dietSummary, isDark, onNavigate })
           </Box>
           <Grid container spacing={2}>
             {[
-              { label: '탄수화물', val: dietSummary.carbs, color: '#3182F6' },
-              { label: '단백질', val: dietSummary.protein, color: '#F04452' },
-              { label: '지방', val: dietSummary.fat, color: '#FFB800' }
+              { label: '탄수화물', val: dietSummary.carbs, color: DATA_COLORS.carb },
+              { label: '단백질', val: dietSummary.protein, color: DATA_COLORS.protein },
+              { label: '지방', val: dietSummary.fat, color: DATA_COLORS.fat }
             ].map((item) => (
               <Grid size={{ xs: 4 }} key={item.label}>
                 <Box>
@@ -420,16 +411,10 @@ const RecentActivityList = memo<RecentActivityListProps>(({ sessions, isDark, on
               disableElevation
               onClick={onLogWorkout}
               sx={{
-                borderRadius: '16px',
-                bgcolor: 'primary.main',
                 px: 4,
                 py: 1.5,
                 fontSize: '16px',
                 fontWeight: 700,
-                boxShadow: '0 8px 24px rgba(49, 130, 246, 0.25)',
-                '&:hover': {
-                  boxShadow: '0 12px 28px rgba(49, 130, 246, 0.35)',
-                }
               }}
             >
               첫 운동 시작하기
@@ -612,15 +597,12 @@ const Dashboard = () => {
                 borderRadius: '50px',
                 py: 2,
                 px: 4,
-                bgcolor: 'primary.main',
-                boxShadow: '0 8px 24px rgba(49, 130, 246, 0.4)',
+                boxShadow: '0 4px 16px rgba(49, 130, 246, 0.25)',
                 zIndex: 100,
                 fontWeight: 700,
                 '&:hover': {
-                  boxShadow: '0 12px 32px rgba(49, 130, 246, 0.5)',
-                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 16px rgba(49, 130, 246, 0.25)',
                 },
-                transition: 'all 0.2s ease',
               }}
               startIcon={<AddCircleOutlineIcon />}
               onClick={handleLogWorkout}

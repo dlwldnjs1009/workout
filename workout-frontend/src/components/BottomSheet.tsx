@@ -19,7 +19,7 @@ const BottomSheet = ({ open, onClose, children, title }: BottomSheetProps) => {
             <Paper sx={{ width: 500, maxHeight: '80vh', overflow: 'auto', borderRadius: 4, p: 3, outline: 'none' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     {title && <Typography variant="h6" fontWeight="bold">{title}</Typography>}
-                    <IconButton onClick={onClose}><CloseIcon /></IconButton>
+                    <IconButton onClick={onClose} aria-label="닫기"><CloseIcon /></IconButton>
                 </Box>
                 {children}
             </Paper>
@@ -55,7 +55,7 @@ const BottomSheet = ({ open, onClose, children, title }: BottomSheetProps) => {
             <Box sx={{ width: 40, height: 4, bgcolor: 'grey.300', borderRadius: 2, mx: 'auto', mb: 3 }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 {title && <Typography variant="h6" fontWeight="bold">{title}</Typography>}
-                <IconButton onClick={onClose}><CloseIcon /></IconButton>
+                <IconButton onClick={onClose} aria-label="닫기"><CloseIcon /></IconButton>
             </Box>
             {children}
         </Paper>

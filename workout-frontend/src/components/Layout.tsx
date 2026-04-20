@@ -93,6 +93,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, mode, onThemeChange, onLogout
     <Box sx={{ ml: 'auto' }}>
       <IconButton
         onClick={handleMenu}
+        aria-label="사용자 메뉴 열기"
+        aria-haspopup="true"
+        aria-expanded={Boolean(anchorEl)}
         sx={{
           p: 0.5,
           border: '2px solid transparent',

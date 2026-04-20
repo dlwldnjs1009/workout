@@ -183,6 +183,7 @@ const MealSection = memo(({
                                 <IconButton
                                     onClick={() => remove(item.index)}
                                     size="small"
+                                    aria-label="식단 항목 삭제"
                                     sx={{
                                         color: 'text.secondary',
                                         opacity: 0.7,
