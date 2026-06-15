@@ -254,6 +254,25 @@
   - `src/main/java/com/example/workout/config/CacheConfig.java`
   - `build.gradle` (caffeine 의존성 추가)
 
+### 13) 워크아웃 세션 조회 N+1 제거 (기간조회 JOIN FETCH + 목록 ID 페이징)
+- 문제
+  - `WorkoutSessionMapper`가 `exercisesPerformed`(+레코드별 `exerciseType`)를 매핑하는데, 이를 호출하는 두 경로(`getUserSessionsByDateRange`, `getUserSessions(pageable)`)에 fetch 전략이 없어 N+1 발생.
+  - 세션 N개 조회 시 `1 + N(컬렉션) + N×M(운동종목)` 쿼리. 대시보드/식단은 이미 막았으나 세션 목록·기간 경로만 누락된 sibling 케이스.
+- 변경
+  - 기간 조회: `findByUserIdAndDateBetweenOrderByDateDesc`를 `@Query` + `LEFT JOIN FETCH exercisesPerformed, exerciseType` + `DISTINCT`로 교체 (Pageable 없으므로 in-memory pagination 제약 무관).
+  - 페이징 목록: 식단(2번 항목)과 동일하게 ID만 페이징(`findIdsByUserIdOrderByDateDesc`) 후 `findByIdIn` fetch join. 서비스에서 ID 순서 보존.
+- 효과
+  - 쿼리 카운트: 기간조회 `31 → 1`, 목록 `1+100 → 2` (`@DataJpaTest` + Hibernate `Statistics`로 검증).
+  - 부하테스트(Docker, 세션 300건 시드, 10 VU × 60s, 에러율 0%) p95:
+    - 목록 `GET /api/sessions`: 59.5ms → 26.4ms (−56%)
+    - 기간 `GET /api/sessions?startDate&endDate`: 56.6ms → 15.6ms (−72%)
+  - 주의: 위 수치는 Docker localhost 기준이라 쿼리당 round-trip이 sub-ms → 원격/매니지드 DB(RTT 1~5ms)에서는 N+1 페널티가 훨씬 커짐. 쿼리 카운트가 DB 독립적 증거.
+- 관련 파일
+  - `src/main/java/com/example/workout/repository/WorkoutSessionRepository.java`
+  - `src/main/java/com/example/workout/service/WorkoutSessionService.java`
+  - `src/test/java/com/example/workout/repository/WorkoutSessionRepositoryN1Test.java` (회귀 방지)
+  - `load-tests/session-list.js`, `load-tests/seed.js`, `docker-compose.loadtest.yml`, `Dockerfile.loadtest` (부하테스트 재현)
+
 ## 3. 검증 방법
 
 ### 백엔드

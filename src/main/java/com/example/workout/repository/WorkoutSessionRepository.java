@@ -15,9 +15,17 @@ import java.util.List;
 @Repository
 public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, Long> {
 
-    // 페이지네이션 적용된 세션 조회
+    // 페이지네이션 적용된 세션 조회 (컬렉션 fetch join 없이 ID만 페이징)
     // Note: @EntityGraph + Pageable은 Hibernate 6에서 에러 발생 (in-memory pagination 금지)
-    Page<WorkoutSession> findByUserIdOrderByDateDesc(Long userId, Pageable pageable);
+    //       -> ID 페이징 후 findByIdIn으로 fetch (식단 조회와 동일 패턴)
+    @Query("SELECT s.id FROM WorkoutSession s WHERE s.user.id = :userId ORDER BY s.date DESC")
+    Page<Long> findIdsByUserIdOrderByDateDesc(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT DISTINCT s FROM WorkoutSession s " +
+           "LEFT JOIN FETCH s.exercisesPerformed r " +
+           "LEFT JOIN FETCH r.exerciseType " +
+           "WHERE s.id IN :ids")
+    List<WorkoutSession> findByIdIn(@Param("ids") List<Long> ids);
 
     // 최근 N개 세션 조회 (대시보드용)
     // Note: @EntityGraph + Pageable 조합 불가, 별도 fetch 필요 시 서비스에서 처리
@@ -56,5 +64,16 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
     @EntityGraph(attributePaths = {"exercisesPerformed", "exercisesPerformed.exerciseType"})
     java.util.Optional<WorkoutSession> findByIdAndUser_Username(Long id, String username);
 
-    List<WorkoutSession> findByUserIdAndDateBetweenOrderByDateDesc(Long userId, LocalDateTime startDate, LocalDateTime endDate);
+    // 기간 조회 + 레코드/운동종목까지 한 번에 fetch (N+1 방지)
+    // Pageable 없음 -> Hibernate 6 in-memory pagination 제약에 해당하지 않음
+    // 컬렉션 fetch로 인한 root 중복은 DISTINCT로 제거
+    @Query("SELECT DISTINCT s FROM WorkoutSession s " +
+           "LEFT JOIN FETCH s.exercisesPerformed r " +
+           "LEFT JOIN FETCH r.exerciseType " +
+           "WHERE s.user.id = :userId AND s.date BETWEEN :startDate AND :endDate " +
+           "ORDER BY s.date DESC")
+    List<WorkoutSession> findByUserIdAndDateBetweenOrderByDateDesc(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 }
