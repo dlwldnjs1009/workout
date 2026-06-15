@@ -24,6 +24,7 @@ import type { WorkoutRoutine, WorkoutSession } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 import { useRestTimerAlerts } from '../hooks/useRestTimerAlerts';
+import { useToast } from '../components/ToastProvider';
 import BottomSheet from '../components/BottomSheet';
 import BottomCTA from '../components/BottomCTA';
 import VerticalScrollSelector from '../components/VerticalScrollSelector';
@@ -528,6 +529,7 @@ const areArraysEqual = (left: string[], right: string[]) =>
 
 const WorkoutLog = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -704,7 +706,7 @@ const WorkoutLog = () => {
       setShowSuccess(true);
     } catch (error) {
       console.error('Failed to save workout', error);
-      alert('저장에 실패했습니다.');
+      toast.error('저장에 실패했습니다.');
     }
   };
 

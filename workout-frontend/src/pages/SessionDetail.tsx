@@ -5,12 +5,14 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { workoutService } from '../services/workoutService';
 import type { WorkoutSession, ExerciseRecord } from '../types';
 import { format } from 'date-fns';
+import { useToast } from '../components/ToastProvider';
 
 const SessionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -20,12 +22,13 @@ const SessionDetail = () => {
         setSession(data);
       } catch (error) {
         console.error('Failed to fetch session', error);
+        toast.error('세션을 불러오지 못했습니다.');
       } finally {
         setLoading(false);
       }
     };
     fetchSession();
-  }, [id]);
+  }, [id, toast]);
 
   if (loading) return <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress /></Box>;
   if (!session) return <Box sx={{ p: 4 }}><Typography>세션을 찾을 수 없습니다</Typography></Box>;
@@ -38,7 +41,7 @@ const SessionDetail = () => {
     <Box>
       {/* Header with back button */}
       <Box sx={{ mb: 4 }}>
-        <IconButton onClick={() => navigate('/history')} sx={{ mb: 2 }}>
+        <IconButton onClick={() => navigate('/history')} aria-label="뒤로 가기" sx={{ mb: 2 }}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h4" fontWeight="bold">

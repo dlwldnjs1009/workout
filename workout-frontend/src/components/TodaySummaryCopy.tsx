@@ -1,16 +1,14 @@
-import { useState } from 'react';
-import { Button, Snackbar, Alert } from '@mui/material';
+import { Button } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { workoutService } from '../services/workoutService';
 import { dietService } from '../services/dietService';
 import { userService } from '../services/userService';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
+import { useToast } from './ToastProvider';
 
 const TodaySummaryCopy = () => {
-  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
-    open: false, message: '', severity: 'success'
-  });
+  const toast = useToast();
   const { user } = useAuthStore();
 
   const handleCopy = async () => {
@@ -118,10 +116,10 @@ ${mealDetails}
         }
       }
 
-      setSnackbar({ open: true, message: '클립보드에 복사되었습니다', severity: 'success' });
+      toast.success('클립보드에 복사되었습니다');
     } catch (error) {
       console.error('Failed to copy', error);
-      setSnackbar({ open: true, message: errorSource || '오늘 요약 복사 실패', severity: 'error' });
+      toast.error(errorSource || '오늘 요약 복사 실패');
     }
   };
 
@@ -136,16 +134,6 @@ ${mealDetails}
       >
         오늘 요약 복사
       </Button>
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={2000} 
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity={snackbar.severity} sx={{ borderRadius: '12px', fontWeight: 600 }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

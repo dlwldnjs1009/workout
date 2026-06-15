@@ -3,6 +3,7 @@ import { Box, Typography, TextField, CircularProgress, InputAdornment, MenuItem,
 import SearchIcon from '@mui/icons-material/Search';
 import { useWorkoutStore } from '../store/workoutStore';
 import ExerciseCard from '../components/ExerciseCard';
+import { useToast } from '../components/ToastProvider';
 
 const ExerciseLibrary = () => {
   const exercises = useWorkoutStore((state) => state.exercises);
@@ -11,6 +12,7 @@ const ExerciseLibrary = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const theme = useTheme();
+  const toast = useToast();
 
   useEffect(() => {
     const loadExercises = async () => {
@@ -18,13 +20,14 @@ const ExerciseLibrary = () => {
         await fetchExercises();
       } catch (error) {
         console.error('Failed to fetch exercises', error);
+        toast.error('운동 종목을 불러오지 못했습니다.');
       } finally {
         setLoading(false);
       }
     };
 
     loadExercises();
-  }, [fetchExercises]);
+  }, [fetchExercises, toast]);
 
   const filteredExercises = exercises.filter(exercise => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) || 

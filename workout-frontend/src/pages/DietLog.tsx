@@ -21,6 +21,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import {useNavigate} from 'react-router-dom';
 import SuccessFeedback from '../components/SuccessFeedback';
 import {dietService} from '../services/dietService';
+import { useToast } from '../components/ToastProvider';
 import {type MealType} from '../types';
 
 const foodEntrySchema = z.object({
@@ -355,6 +356,7 @@ const DietLog = () => {
     const [showSuccess, setShowSuccess] = useState(false);
     const navigate = useNavigate();
     const theme = useTheme();
+    const toast = useToast();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const {control, register, handleSubmit, watch, reset, formState: {isDirty}} = useForm<DietSessionFormData>({
         resolver: zodResolver(dietSessionSchema),
@@ -418,12 +420,13 @@ const DietLog = () => {
                 }
             } catch (error) {
                 console.error("Error fetching diet session", error);
+                toast.error('식단 기록을 불러오지 못했습니다.');
             } finally {
                 setLoading(false);
             }
         };
         fetchSession();
-    }, [watchDate, reset]);
+    }, [watchDate, reset, toast]);
 
     const onSubmit = async (data: DietSessionFormData) => {
         try {
@@ -435,7 +438,7 @@ const DietLog = () => {
             setShowSuccess(true);
         } catch (error) {
             console.error('Failed to save diet log', error);
-            alert('저장에 실패했습니다.');
+            toast.error('저장에 실패했습니다.');
         }
     };
 
