@@ -85,7 +85,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
@@ -108,7 +108,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(10L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(5L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
@@ -136,7 +136,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(3L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(3L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(volumeData);
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(volumeData);
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
@@ -177,7 +177,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(dateCounts);
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
@@ -200,7 +200,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
@@ -236,7 +236,7 @@ class WorkoutSessionServiceTest {
             when(sessionMapper.toDTO(session1)).thenReturn(dto1);
             when(sessionMapper.toDTO(session2)).thenReturn(dto2);
             when(sessionMapper.toDTO(session3)).thenReturn(dto3);
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
@@ -258,7 +258,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             assertThatCode(() -> workoutSessionService.getWorkoutDashboard(TEST_USERNAME, "America/New_York"))
@@ -273,7 +273,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
             when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
-            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, "UTC");

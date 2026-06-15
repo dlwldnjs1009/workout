@@ -11,6 +11,7 @@ import com.example.workout.mapper.WorkoutSessionMapper;
 import com.example.workout.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -93,8 +95,24 @@ public class WorkoutSessionService {
     public Page<WorkoutSessionDTO> getUserSessions(String username, Pageable pageable) {
         User user = getUser(username);
 
-        return sessionRepository.findByUserIdOrderByDateDesc(user.getId(), pageable)
-            .map(sessionMapper::toDTO);
+        // ID만 페이징 -> findByIdIn으로 컬렉션 fetch (N+1 방지, 식단 조회와 동일 패턴)
+        Page<Long> idPage = sessionRepository.findIdsByUserIdOrderByDateDesc(user.getId(), pageable);
+        if (idPage.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, idPage.getTotalElements());
+        }
+
+        List<WorkoutSession> sessions = sessionRepository.findByIdIn(idPage.getContent());
+        Map<Long, WorkoutSession> sessionsById = sessions.stream()
+            .collect(Collectors.toMap(WorkoutSession::getId, Function.identity()));
+
+        // ID 페이지 순서(date DESC) 보존
+        List<WorkoutSessionDTO> content = idPage.getContent().stream()
+            .map(sessionsById::get)
+            .filter(Objects::nonNull)
+            .map(sessionMapper::toDTO)
+            .collect(Collectors.toList());
+
+        return new PageImpl<>(content, pageable, idPage.getTotalElements());
     }
 
     /**
