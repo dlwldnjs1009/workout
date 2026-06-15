@@ -1,4 +1,4 @@
-name: Android 빌드 및 배포
+name: Android APK 빌드
 
 on:
   push:
@@ -8,80 +8,135 @@ on:
       - '.github/workflows/android-deploy.yml'
   workflow_dispatch:
     inputs:
-      track:
-        description: '배포 트랙'
+      publish_release:
+        description: '폰 다운로드용 GitHub Release 생성'
         required: true
-        default: 'internal'
-        type: choice
-        options:
-          - internal
-          - alpha
-          - beta
-          - production
+        default: true
+        type: boolean
+      release_name:
+        description: 'Release 제목(비워두면 자동 생성)'
+        required: false
+        default: ''
+        type: string
 
 env:
   VERSION_CODE: ${{ github.run_number }}
+  VERSION_NAME: 1.0.${{ github.run_number }}
 
 jobs:
-  build-android:
-    name: Android 빌드
+  build-apk:
+    name: Android APK 빌드
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    permissions:
+      contents: write
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: workout-frontend/package-lock.json
 
-      - uses: actions/setup-java@v4
+      - name: Java 설정
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      - name: 웹 빌드
+      - name: 프론트엔드 의존성 설치
         working-directory: workout-frontend
-        run: |
-          npm ci --no-audit --no-fund
-          npm run build
+        run: npm ci --no-audit --no-fund
 
-      - name: Capacitor 동기화
+      - name: 웹 번들 빌드
+        working-directory: workout-frontend
+        run: npm run build
+
+      - name: Capacitor Android 동기화
         working-directory: workout-frontend
         run: npx cap sync android
 
-      - name: Keystore 디코딩
+      - name: Gradle 실행 권한 설정
+        working-directory: workout-frontend/android
+        run: chmod +x ./gradlew
+
+      - name: Debug APK 빌드
+        working-directory: workout-frontend/android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Debug APK 파일명 정리
+        run: |
+          mkdir -p workout-frontend/android-artifacts
+          cp workout-frontend/android/app/build/outputs/apk/debug/app-debug.apk \
+            "workout-frontend/android-artifacts/TodayFit-debug-${{ github.run_number }}.apk"
+
+      - name: Release 서명 설정 확인
+        id: release_signing
         working-directory: workout-frontend/android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > app/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > app/release.keystore
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing secrets are not configured. Debug APK only."
+          fi
 
-      - name: Android 빌드 (AAB + APK)
+      - name: Release APK 빌드
+        if: steps.release_signing.outputs.enabled == 'true'
         working-directory: workout-frontend/android
         env:
           ANDROID_KEYSTORE_FILE: release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          VERSION_NAME: "1.0.${{ github.run_number }}"
-        run: |
-          ./gradlew bundleRelease
-          ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
 
-      - name: 빌드 산출물 업로드
+      - name: Release APK 파일명 정리
+        if: steps.release_signing.outputs.enabled == 'true'
+        run: |
+          cp workout-frontend/android/app/build/outputs/apk/release/app-release.apk \
+            "workout-frontend/android-artifacts/TodayFit-release-${{ github.run_number }}.apk"
+
+      - name: APK artifact 업로드
         uses: actions/upload-artifact@v4
         with:
-          name: android-release
-          path: |
-            workout-frontend/android/app/build/outputs/bundle/release/*.aab
-            workout-frontend/android/app/build/outputs/apk/release/*.apk
+          name: todayfit-android-apk-${{ github.run_number }}
+          path: workout-frontend/android-artifacts/*.apk
+          if-no-files-found: error
           retention-days: 30
 
-      # Google Play 배포 (서비스 계정 설정 후 주석 해제)
-      # - name: Google Play 배포
-      #   uses: r0adkll/upload-google-play@v1
-      #   with:
-      #     serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
-      #     packageName: com.todayfit.app
-      #     releaseFiles: workout-frontend/android/app/build/outputs/bundle/release/*.aab
-      #     track: ${{ inputs.track || 'internal' }}
+      - name: GitHub Release 생성
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: android-${{ github.run_number }}-${{ github.run_attempt }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+        run: |
+          title="$RELEASE_NAME"
+          if [ -z "$title" ]; then
+            title="TodayFit Android #${{ github.run_number }}"
+          fi
+
+          gh release create "$RELEASE_TAG" workout-frontend/android-artifacts/*.apk \
+            --target "${{ github.sha }}" \
+            --title "$title" \
+            --notes "TodayFit Android APK 자동 빌드입니다. 폰에서 APK asset을 다운로드해 설치하세요."
+
+      - name: 다운로드 안내 작성
+        run: |
+          {
+            echo "## Android APK 다운로드"
+            echo
+            echo "- Actions run의 Artifacts에서 todayfit-android-apk-${{ github.run_number }} 파일을 받을 수 있습니다."
+            echo "- 수동 실행에서 publish_release=true를 선택하면 Releases에도 APK가 올라갑니다."
+            echo "- Debug APK만 생성된 경우 기존 설치 앱과 서명이 다르면 업데이트 설치가 거부될 수 있습니다. 그때는 기존 앱을 삭제 후 설치하세요."
+          } >> "$GITHUB_STEP_SUMMARY"
