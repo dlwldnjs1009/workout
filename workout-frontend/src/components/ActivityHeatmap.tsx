@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, memo, useCallback } from 'react';
-import { Box, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, ButtonBase, Tooltip, Typography, useTheme } from '@mui/material';
 import { format, addDays, parseISO, getDay } from 'date-fns';
 
 interface ActivityHeatmapProps {
@@ -24,6 +24,11 @@ const COLOR_MAP = {
   },
 } as const;
 
+type HeatmapDay = {
+  date: Date;
+  level: number;
+};
+
 const ActivityHeatmap = ({ startDate, levels, onClick }: ActivityHeatmapProps) => {
   const theme = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -31,15 +36,18 @@ const ActivityHeatmap = ({ startDate, levels, onClick }: ActivityHeatmapProps) =
   const baseDate = useMemo(() => parseISO(startDate), [startDate]);
   const startDayOfWeek = useMemo(() => getDay(baseDate), [baseDate]);
   
-  const days = useMemo(() => levels.map((level, index) => ({
+  const days = useMemo<HeatmapDay[]>(() => levels.map((level, index) => ({
     date: addDays(baseDate, index),
     level
   })), [baseDate, levels]);
   
-  const paddedDays = useMemo(() => Array(startDayOfWeek).fill(null).concat(days), [startDayOfWeek, days]);
+  const paddedDays = useMemo<Array<HeatmapDay | null>>(
+    () => [...Array<null>(startDayOfWeek).fill(null), ...days],
+    [startDayOfWeek, days]
+  );
   
   const weeks = useMemo(() => {
-    const result = [];
+    const result: Array<Array<HeatmapDay | null>> = [];
     for (let i = 0; i < paddedDays.length; i += 7) {
       result.push(paddedDays.slice(i, i + 7));
     }
@@ -79,7 +87,7 @@ const ActivityHeatmap = ({ startDate, levels, onClick }: ActivityHeatmapProps) =
       }}>
         {weeks.map((week, wIndex) => (
           <Box key={wIndex} sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {week.map((day: any, dIndex: number) => {
+            {week.map((day, dIndex) => {
               if (!day) return <Box key={`empty-${dIndex}`} sx={{ width: 14, height: 14 }} />;
               
               const level = day.level;
@@ -123,22 +131,39 @@ const ActivityHeatmap = ({ startDate, levels, onClick }: ActivityHeatmapProps) =
                     }
                   }}
                 >
-                  <Box 
+                  <ButtonBase
+                    component="button"
+                    type="button"
                     onClick={() => onClick?.(dateStr, level)}
+                    aria-label={`${format(day.date, 'yyyy년 M월 d일')} 활동 레벨 ${level}`}
                     sx={{ 
-                      width: 14, 
-                      height: 14, 
-                      borderRadius: '3px', 
-                      bgcolor: getColor(level),
-                      cursor: 'pointer',
-                      transition: 'all 0.1s ease',
+                      width: 24,
+                      height: 24,
+                      borderRadius: '5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'transform 0.1s ease, box-shadow 0.1s ease',
                       '&:hover': {
                          transform: 'scale(1.2)',
                          zIndex: 1,
                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                      },
+                      '&:focus-visible': {
+                         outline: `2px solid ${theme.palette.primary.main}`,
+                         outlineOffset: 2
                       }
                     }} 
-                  />
+                  >
+                    <Box
+                      sx={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: '3px',
+                        bgcolor: getColor(level)
+                      }}
+                    />
+                  </ButtonBase>
                 </Tooltip>
               );
             })}

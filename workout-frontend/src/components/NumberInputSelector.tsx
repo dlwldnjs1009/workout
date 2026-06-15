@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { Grid } from 'react-window';
 import type { GridImperativeAPI, CellComponentProps } from 'react-window';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, ButtonBase, Typography, useTheme } from '@mui/material';
 import VerticalScrollSelector from './VerticalScrollSelector';
 
 // 아이템 컴포넌트 메모이제이션
@@ -13,8 +13,12 @@ interface HorizontalItemProps {
 }
 
 const HorizontalItem = memo(({ value, isSelected, suffix, onClick }: HorizontalItemProps) => (
-  <Box
+  <ButtonBase
+    component="button"
+    type="button"
     onClick={onClick}
+    aria-label={`${value}${suffix} 선택`}
+    aria-pressed={isSelected}
     sx={{
       width: '100%',
       height: '100%',
@@ -23,10 +27,13 @@ const HorizontalItem = memo(({ value, isSelected, suffix, onClick }: HorizontalI
       justifyContent: 'center',
       opacity: isSelected ? 1 : 0.3,
       transform: isSelected ? 'scale(1.2)' : 'scale(1)',
-      transition: 'all 0.1s ease-out',
-      cursor: 'pointer',
+      transition: 'opacity 0.1s ease-out, transform 0.1s ease-out, color 0.1s ease-out',
       fontWeight: isSelected ? 800 : 500,
-      color: isSelected ? 'primary.main' : 'text.primary'
+      color: isSelected ? 'primary.main' : 'text.primary',
+      '&:focus-visible': {
+        outline: '2px solid currentColor',
+        outlineOffset: 2,
+      }
     }}
   >
     <Typography
@@ -40,7 +47,7 @@ const HorizontalItem = memo(({ value, isSelected, suffix, onClick }: HorizontalI
     >
       {value}{suffix}
     </Typography>
-  </Box>
+  </ButtonBase>
 ));
 
 HorizontalItem.displayName = 'HorizontalItem';

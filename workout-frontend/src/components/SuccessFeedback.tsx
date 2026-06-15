@@ -24,6 +24,9 @@ const SuccessFeedback = ({ open, onClose, message = "저장 완료!" }: SuccessF
     <AnimatePresence>
       {open && (
         <Box
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
           sx={{
             position: 'fixed',
             top: 0,

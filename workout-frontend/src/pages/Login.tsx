@@ -39,22 +39,28 @@ const Login = () => {
       };
       setAuth(user, response.token);
       navigate('/');
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      const errorInfo = err as {
+        message?: string;
+        response?: { status?: number; statusText?: string; data?: unknown };
+        code?: string;
+        config?: { baseURL?: string; url?: string };
+      };
+      const status = errorInfo.response?.status;
       const message = status === 401 || status === 403
         ? '아이디 또는 비밀번호가 일치하지 않아요. 다시 확인해 주세요.'
-        : status >= 500
+        : typeof status === 'number' && status >= 500
           ? '일시적으로 서버와 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
           : '로그인에 실패했어요. 잠시 후 다시 시도해 주세요.';
       setError(message);
       if (import.meta.env.DEV) {
         setErrorDetail(JSON.stringify({
-          message: err?.message,
+          message: errorInfo.message,
           status,
-          statusText: err?.response?.statusText,
-          data: err?.response?.data,
-          code: err?.code,
-          url: err?.config?.baseURL + err?.config?.url,
+          statusText: errorInfo.response?.statusText,
+          data: errorInfo.response?.data,
+          code: errorInfo.code,
+          url: `${errorInfo.config?.baseURL ?? ''}${errorInfo.config?.url ?? ''}`,
         }, null, 2));
       }
     }

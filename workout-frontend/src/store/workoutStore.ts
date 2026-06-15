@@ -85,7 +85,7 @@ export const useWorkoutStore = create<WorkoutState>()((set, get) => ({
     } catch (error) {
       console.error('Failed to fetch exercises:', error);
       set({ exercisesCache: { ...state.exercisesCache, isLoading: false } });
-      return state.exercises;
+      throw error;
     }
   },
 
@@ -116,7 +116,7 @@ export const useWorkoutStore = create<WorkoutState>()((set, get) => ({
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
       set({ sessionsCache: { ...state.sessionsCache, isLoading: false } });
-      return state.sessions;
+      throw error;
     }
   },
 

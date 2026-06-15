@@ -12,13 +12,14 @@ interface BottomSheetProps {
 const BottomSheet = ({ open, onClose, children, title }: BottomSheetProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const titleId = React.useId();
 
   if (!isMobile) {
     return (
         <Modal open={open} onClose={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Paper sx={{ width: 500, maxHeight: '80vh', overflow: 'auto', borderRadius: 4, p: 3, outline: 'none' }}>
+            <Paper role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1} sx={{ width: 500, maxHeight: '80vh', overflow: 'auto', borderRadius: 4, p: 3, outline: '2px solid transparent' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    {title && <Typography variant="h6" fontWeight="bold">{title}</Typography>}
+                    {title && <Typography id={titleId} variant="h6" fontWeight="bold">{title}</Typography>}
                     <IconButton onClick={onClose} aria-label="닫기"><CloseIcon /></IconButton>
                 </Box>
                 {children}
@@ -40,6 +41,10 @@ const BottomSheet = ({ open, onClose, children, title }: BottomSheetProps) => {
     >
       <Slide direction="up" in={open} mountOnEnter unmountOnExit>
         <Paper
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          tabIndex={-1}
           sx={{
             width: '100%',
             maxHeight: '85vh',
@@ -47,14 +52,14 @@ const BottomSheet = ({ open, onClose, children, title }: BottomSheetProps) => {
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             p: 3,
-            outline: 'none',
+            outline: '2px solid transparent',
             bgcolor: 'background.paper',
             pb: 6
           }}
         >
             <Box sx={{ width: 40, height: 4, bgcolor: 'grey.300', borderRadius: 2, mx: 'auto', mb: 3 }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                {title && <Typography variant="h6" fontWeight="bold">{title}</Typography>}
+                {title && <Typography id={titleId} variant="h6" fontWeight="bold">{title}</Typography>}
                 <IconButton onClick={onClose} aria-label="닫기"><CloseIcon /></IconButton>
             </Box>
             {children}

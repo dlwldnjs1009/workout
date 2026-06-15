@@ -18,10 +18,10 @@ const WorkoutTimer = ({ onTick }: { onTick?: (seconds: number) => void }) => {
   const theme = useTheme();
 
   useEffect(() => {
-    let interval: any = null;
+    let interval: ReturnType<typeof window.setInterval> | null = null;
     
     if (isRunning && timerStartedAt) {
-      interval = setInterval(() => {
+      interval = window.setInterval(() => {
         const now = Date.now();
         const elapsed = Math.floor((now - timerStartedAt) / 1000);
         
@@ -95,7 +95,7 @@ const WorkoutTimer = ({ onTick }: { onTick?: (seconds: number) => void }) => {
                 color: isRunning ? 'text.secondary' : '#fff',
                 width: 64,
                 height: 64,
-                transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                transition: 'background-color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 '&:hover': {
                     bgcolor: isRunning ? (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#e5e8eb') : 'primary.dark',
                     transform: 'scale(1.05)'
@@ -115,7 +115,7 @@ const WorkoutTimer = ({ onTick }: { onTick?: (seconds: number) => void }) => {
                 color: 'text.secondary',
                 width: 64,
                 height: 64,
-                transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                transition: 'background-color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 '&:hover': { 
                     bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#e5e8eb',
                     transform: 'scale(1.05)'

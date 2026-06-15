@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useForm, useFieldArray, FormProvider, useWatch, useFormContext } from 'react-hook-form';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useForm, useFieldArray, FormProvider, useWatch, useFormContext, type FieldArrayWithId } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Box, Typography, Button, TextField, Paper, Grid, IconButton,
   Chip, Collapse, Stack, useTheme, useMediaQuery, Fab, InputAdornment,
-  Dialog, DialogTitle, DialogContent, DialogActions, Slider
+  Dialog, DialogTitle, DialogContent, DialogActions, Slider, ButtonBase
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -32,6 +33,7 @@ import VerticalScrollSelector from '../components/VerticalScrollSelector';
 import {HorizontalScrollSelector} from "../components/NumberInputSelector.tsx";
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import { getLocalDateString } from '../utils/date';
 
 const RPE_OPTIONS = [
     { value: 10, label: '10 (이게 한계다)' },
@@ -66,6 +68,7 @@ const workoutSessionSchema = z.object({
 });
 
 type WorkoutSessionFormData = z.infer<typeof workoutSessionSchema>;
+type SetRecordFormData = WorkoutSessionFormData['exercisesPerformed'][number]['sets'][number];
 
 const CATEGORIES = [
   { value: 'ALL', label: '전체' },
@@ -96,6 +99,9 @@ const PickerContent = ({
         control,
         name: fieldPath
     }) as number;
+    const [inputValue, setInputValue] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const displayValue = isEditing ? inputValue : String(value ?? '');
 
     if (type === 'rpe') {
         const handleRpeSelect = (val: number | undefined) => {
@@ -140,15 +146,6 @@ const PickerContent = ({
         );
     }
 
-    const [inputValue, setInputValue] = useState(String(value));
-    const [isEditing, setIsEditing] = useState(false);
-
-    useEffect(() => {
-        if (!isEditing) {
-            setInputValue(String(value));
-        }
-    }, [value, isEditing]);
-
     const adjustValue = (amount: number) => {
         let newValue = value + amount;
         if (type === 'weight') {
@@ -182,7 +179,7 @@ const PickerContent = ({
         setIsEditing(false);
         const parsed = parseFloat(inputValue);
         if (isNaN(parsed) || inputValue === '') {
-            setInputValue(String(value));
+            setInputValue('');
         } else {
             const clamped = type === 'weight'
                 ? Math.max(0, Math.min(1000, parsed))
@@ -203,9 +200,12 @@ const PickerContent = ({
         <Box sx={{ py: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 3 }}>
                 <TextField
-                    value={inputValue}
+                    value={displayValue}
                     onChange={handleInputChange}
-                    onFocus={() => setIsEditing(true)}
+                    onFocus={() => {
+                        setInputValue(String(value ?? ''));
+                        setIsEditing(true);
+                    }}
                     onBlur={handleInputBlur}
                     type="text"
                     inputMode="decimal"
@@ -324,7 +324,7 @@ const ExerciseSetsList = ({
     toggleSetCompletion: (exIdx: number, sIdx: number) => void
 }) => {
     const theme = useTheme();
-    const sets = useWatch({ name: `exercisesPerformed.${exerciseIndex}.sets` }) as any[];
+    const sets = useWatch({ name: `exercisesPerformed.${exerciseIndex}.sets` }) as SetRecordFormData[];
 
     return (
         <Stack spacing={1}>
@@ -343,41 +343,52 @@ const ExerciseSetsList = ({
                         transition: 'background-color 0.2s ease'
                     }}
                 >
-                    <Box 
+                    <IconButton
                         onClick={() => toggleSetCompletion(exerciseIndex, sIdx)}
-                        sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        size="small"
+                        aria-label={`${sIdx + 1}세트 ${set.completed ? '완료 취소' : '완료 표시'}`}
+                        sx={{ color: set.completed ? 'primary.main' : 'action.active', flexShrink: 0 }}
                     >
                         {set.completed ? (
-                            <CheckBoxIcon color="primary" />
+                            <CheckBoxIcon />
                         ) : (
-                            <CheckBoxOutlineBlankIcon color="action" />
+                            <CheckBoxOutlineBlankIcon />
                         )}
-                    </Box>
+                    </IconButton>
                     
                     <Typography variant="body2" fontWeight="700" sx={{ minWidth: 20, color: 'text.secondary' }}>{sIdx + 1}</Typography>
                     
                     <Box sx={{ flex: 1, display: 'flex', gap: 1, overflowX: 'auto' }}>
-                        <Box 
+                        <ButtonBase
+                            component="button"
+                            type="button"
                             onClick={() => openPicker(exerciseIndex, sIdx, 'weight')}
-                            sx={{ flex: 1, minWidth: 60, p: 1, bgcolor: 'background.paper', borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, textAlign: 'center', cursor: 'pointer' }}
+                            aria-label={`${sIdx + 1}세트 무게 ${set.weight}kg 변경`}
+                            sx={{ flex: 1, minWidth: 60, p: 1, bgcolor: 'background.paper', borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, textAlign: 'center', color: 'text.primary', display: 'block', '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}
                         >
                             <Typography variant="caption" display="block" color="text.secondary">무게</Typography>
                             <Typography variant="body1" fontWeight="700">{set.weight} kg</Typography>
-                        </Box>
-                        <Box 
+                        </ButtonBase>
+                        <ButtonBase
+                            component="button"
+                            type="button"
                             onClick={() => openPicker(exerciseIndex, sIdx, 'reps')}
-                            sx={{ flex: 1, minWidth: 60, p: 1, bgcolor: 'background.paper', borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, textAlign: 'center', cursor: 'pointer' }}
+                            aria-label={`${sIdx + 1}세트 횟수 ${set.reps}회 변경`}
+                            sx={{ flex: 1, minWidth: 60, p: 1, bgcolor: 'background.paper', borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, textAlign: 'center', color: 'text.primary', display: 'block', '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}
                         >
                             <Typography variant="caption" display="block" color="text.secondary">횟수</Typography>
                             <Typography variant="body1" fontWeight="700">{set.reps} 회</Typography>
-                        </Box>
-                         <Box 
+                        </ButtonBase>
+                         <ButtonBase
+                            component="button"
+                            type="button"
                             onClick={() => openPicker(exerciseIndex, sIdx, 'rpe')}
-                            sx={{ flex: 1, minWidth: 60, p: 1, bgcolor: 'background.paper', borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, textAlign: 'center', cursor: 'pointer' }}
+                            aria-label={`${sIdx + 1}세트 RPE ${set.rpe ?? '없음'} 변경`}
+                            sx={{ flex: 1, minWidth: 60, p: 1, bgcolor: 'background.paper', borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, textAlign: 'center', color: 'text.primary', display: 'block', '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}
                         >
                             <Typography variant="caption" display="block" color="text.secondary">RPE</Typography>
                             <Typography variant="body1" fontWeight="700">{set.rpe ?? '-'}</Typography>
-                        </Box>
+                        </ButtonBase>
                     </Box>
 
                     <IconButton onClick={() => removeSet(exerciseIndex, sIdx)} size="small" aria-label="세트 삭제" sx={{ color: 'text.disabled' }}>
@@ -397,7 +408,20 @@ const ExerciseSetsList = ({
     );
 };
 
-const SortableExerciseItem = React.memo(({ 
+interface SortableExerciseItemProps {
+    field: FieldArrayWithId<WorkoutSessionFormData, 'exercisesPerformed', 'id'>;
+    index: number;
+    remove: (index: number) => void;
+    toggleExpand: (index: number) => void;
+    isExpanded: boolean;
+    openPicker: (exIdx: number, sIdx: number, type: 'reps' | 'weight' | 'rpe') => void;
+    removeSet: (exIdx: number, sIdx: number) => void;
+    addSet: (exIdx: number) => void;
+    toggleSetCompletion: (exIdx: number, sIdx: number) => void;
+    theme: Theme;
+}
+
+const SortableExerciseItem = React.memo(({
     field, 
     index, 
     remove, 
@@ -408,7 +432,7 @@ const SortableExerciseItem = React.memo(({
     addSet, 
     toggleSetCompletion,
     theme
-}: any) => {
+}: SortableExerciseItemProps) => {
     const dragControls = useDragControls();
     const exerciseName = field.exerciseName;
 
@@ -472,20 +496,24 @@ const SortableExerciseItem = React.memo(({
                     </Box>
 
                     <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                         <Box
+                         <ButtonBase
+                            component="button"
+                            type="button"
                             onClick={() => toggleExpand(index)}
-                            sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                            aria-expanded={isExpanded}
+                            aria-label={`${exerciseName} 세트 ${isExpanded ? '접기' : '펼치기'}`}
+                            sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'inherit', textAlign: 'left', borderRadius: '12px', '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}
                         >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                                 <Typography variant="h6" fontWeight="700" color="primary.main" sx={{ whiteSpace: 'nowrap' }}>{exerciseName}</Typography>
                                 <ExerciseSetCount index={index} />
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <IconButton size="small" aria-label={isExpanded ? '세부 사항 접기' : '세부 사항 펼치기'} sx={{ mr: 1 }}>
+                                <Box aria-hidden="true" sx={{ mr: 1, display: 'flex', color: 'action.active' }}>
                                     {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                </IconButton>
+                                </Box>
                             </Box>
-                        </Box>
+                        </ButtonBase>
                         
                          <IconButton
                             onClick={(e) => {
@@ -568,7 +596,7 @@ const WorkoutLog = () => {
     return () => clearInterval(interval);
   }, [isRestTimerRunning, updateRestTimer]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   // 하루 지난 WIP draft는 만료 처리 — 옛 날짜·옛 기록이 오늘 다시 떠오르는 버그 방지
   const wipIsStale = !!wipSession && wipSavedDate !== today;
 
@@ -609,16 +637,28 @@ const WorkoutLog = () => {
   });
 
   const { control, register, handleSubmit, setValue, watch, getValues, formState: { isSubmitting } } = methods;
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAutosaveTimer = useCallback(() => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const subscription = watch((value) => {
-        const timeout = setTimeout(() => {
+        clearAutosaveTimer();
+        autosaveTimerRef.current = setTimeout(() => {
             saveWipSession(value);
+            autosaveTimerRef.current = null;
         }, 1000);
-        return () => clearTimeout(timeout);
     });
-    return () => subscription.unsubscribe();
-  }, [watch, saveWipSession]);
+    return () => {
+      subscription.unsubscribe();
+      clearAutosaveTimer();
+    };
+  }, [watch, saveWipSession, clearAutosaveTimer]);
 
   const { fields, append, remove, move } = useFieldArray({
     control, 
@@ -640,8 +680,11 @@ const WorkoutLog = () => {
   }, [fields]);
 
   useEffect(() => {
-    fetchExercises();
-  }, [fetchExercises]);
+    fetchExercises().catch((error) => {
+      console.error('Failed to fetch exercises', error);
+      toast.error('운동 종목을 불러오지 못했습니다.');
+    });
+  }, [fetchExercises, toast]);
 
   useEffect(() => {
     if (routineToStart && exercises.length > 0) {
@@ -698,6 +741,7 @@ const WorkoutLog = () => {
 
   const onSubmit = async (data: WorkoutSessionFormData) => {
     try {
+      clearAutosaveTimer();
       const payload: Partial<WorkoutSession> = {
         date: data.date, 
         duration: data.duration,
@@ -910,6 +954,7 @@ const WorkoutLog = () => {
              <Fab 
                 size="small" 
                 color="default" 
+                aria-label="휴식 타이머 설정"
                 onClick={() => setTimerSettingsOpen(true)}
                 sx={{ bgcolor: 'background.paper', boxShadow: theme.shadows[2] }}
             >
@@ -918,6 +963,7 @@ const WorkoutLog = () => {
             <Fab 
                 size="small" 
                 color="default" 
+                aria-label="자세 분석 열기"
                 onClick={() => setPoseAnalysisOpen(true)}
                 sx={{ bgcolor: 'background.paper', boxShadow: theme.shadows[2] }}
             >
@@ -1295,6 +1341,17 @@ const WorkoutLog = () => {
         {restTimerAlertVisible && (
           <Box
             onClick={dismissRestTimerAlert}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+                event.preventDefault();
+                dismissRestTimerAlert();
+              }
+            }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="휴식 종료 알림"
+            aria-live="assertive"
+            tabIndex={0}
             sx={{
               position: 'fixed',
               inset: 0,

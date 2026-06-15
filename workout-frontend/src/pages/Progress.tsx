@@ -1,7 +1,8 @@
 import {useEffect, useState, useMemo, useCallback, lazy, Suspense} from 'react';
-import {Box, CircularProgress, Grid, Stack, Typography, useTheme, Skeleton} from '@mui/material';
+import {Box, Button, CircularProgress, Grid, Stack, Typography, useTheme, Skeleton} from '@mui/material';
 import type {WorkoutSession} from '../types';
 import {format, startOfWeek} from 'date-fns';
+import { ko } from 'date-fns/locale';
 import TossCard from '../components/TossCard';
 import EmptyState from '../components/EmptyState';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -17,23 +18,27 @@ const Progress = () => {
     const sessions = useWorkoutStore((state) => state.sessions);
     const fetchSessions = useWorkoutStore((state) => state.fetchSessions);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const theme = useTheme();
     const toast = useToast();
 
-    useEffect(() => {
-        const loadSessions = async () => {
-            try {
-                await fetchSessions();
-            } catch (error) {
-                console.error('Failed to fetch sessions', error);
-                toast.error('운동 기록을 불러오지 못했습니다.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadSessions();
+    const loadSessions = useCallback(async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            await fetchSessions();
+        } catch (error) {
+            console.error('Failed to fetch sessions', error);
+            setError(true);
+            toast.error('운동 기록을 불러오지 못했습니다.');
+        } finally {
+            setLoading(false);
+        }
     }, [fetchSessions, toast]);
+
+    useEffect(() => {
+        loadSessions();
+    }, [loadSessions]);
 
     // useMemo로 세션 볼륨 계산 캐싱
     const calculateSessionVolume = useCallback((session: WorkoutSession) => {
@@ -46,7 +51,7 @@ const Progress = () => {
     const chartData = useMemo(() => {
         const workoutsPerWeek = sessions.reduce((acc: Record<string, number>, session) => {
             const date = new Date(session.date);
-            const weekStart = format(startOfWeek(date), 'MMM d');
+            const weekStart = format(startOfWeek(date), 'M월 d일', { locale: ko });
             acc[weekStart] = (acc[weekStart] || 0) + 1;
             return acc;
         }, {});
@@ -63,7 +68,7 @@ const Progress = () => {
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .slice(-10)
             .map(session => ({
-                date: format(new Date(session.date), 'MM/dd'),
+                date: format(new Date(session.date), 'M/d'),
                 volume: calculateSessionVolume(session)
             }));
     }, [sessions, calculateSessionVolume]);
@@ -75,6 +80,19 @@ const Progress = () => {
     }), [sessions, calculateSessionVolume]);
 
     if (loading) return <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress/></Box>;
+    if (error) {
+        return (
+            <Box sx={{pb: 8}}>
+                <EmptyState
+                    icon={<HistoryIcon />}
+                    title="운동 기록을 불러오지 못했어요"
+                    description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+                    action={<Button variant="contained" onClick={loadSessions}>다시 시도</Button>}
+                    height="420px"
+                />
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{pb: 8}}>
@@ -98,7 +116,7 @@ const Progress = () => {
                                 {totalWorkouts}
                             </Typography>
                             <Typography variant="h6" fontWeight="600" color="#ef4444">
-                                ▲ {chartData.length > 0 ? chartData[chartData.length - 1].workouts : 0} this week
+                                이번 주 {chartData.length > 0 ? chartData[chartData.length - 1].workouts : 0}회
                             </Typography>
                         </Box>
                     </Box>
@@ -121,14 +139,14 @@ const Progress = () => {
                 <Grid size={{xs: 12, md: 6}}>
                     <Box sx={{mb: 2}}>
                         <Typography variant="body2" fontWeight="600" color="text.secondary" gutterBottom>
-                            총 볼륨 (KG)
+                            총 볼륨 (kg)
                         </Typography>
                         <Box sx={{display: 'flex', alignItems: 'baseline', gap: 1}}>
                             <Typography variant="h2" fontWeight="700" color="text.primary">
                                 {totalVolume.toLocaleString()}
                             </Typography>
                             <Typography variant="h6" fontWeight="600" color="#3182F6">
-                                kg total
+                                kg 누적
                             </Typography>
                         </Box>
                     </Box>
@@ -169,7 +187,7 @@ const Progress = () => {
                                 >
                                     <Box>
                                         <Typography variant="body1" fontWeight="600" color="text.primary">
-                                            {format(new Date(session.date), 'MMM d, yyyy')}
+                                            {format(new Date(session.date), 'yyyy년 M월 d일', { locale: ko })}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
                                             {new Set(session.exercisesPerformed?.map(e => e.exerciseId) || []).size} 운동

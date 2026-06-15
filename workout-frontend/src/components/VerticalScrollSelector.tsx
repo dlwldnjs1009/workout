@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { List } from 'react-window';
 import type { ListImperativeAPI, RowComponentProps } from 'react-window';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, ButtonBase, Typography, useTheme } from '@mui/material';
 
 interface VerticalScrollSelectorProps {
   values: number[];
@@ -21,19 +21,27 @@ interface ItemProps {
 }
 
 const Item = memo(({ value, isSelected, suffix, onClick }: ItemProps) => (
-  <Box
+  <ButtonBase
+    component="button"
+    type="button"
     onClick={onClick}
+    aria-label={`${value}${suffix} 선택`}
+    aria-pressed={isSelected}
     sx={{
+      width: '100%',
       height: '100%',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       opacity: isSelected ? 1 : 0.3,
       transform: isSelected ? 'scale(1.15)' : 'scale(1)',
-      transition: 'all 0.1s ease-out',
-      cursor: 'pointer',
+      transition: 'opacity 0.1s ease-out, transform 0.1s ease-out, color 0.1s ease-out',
       fontWeight: isSelected ? 800 : 500,
-      color: isSelected ? 'primary.main' : 'text.primary'
+      color: isSelected ? 'primary.main' : 'text.primary',
+      '&:focus-visible': {
+        outline: '2px solid currentColor',
+        outlineOffset: 2,
+      }
     }}
   >
     <Typography
@@ -47,7 +55,7 @@ const Item = memo(({ value, isSelected, suffix, onClick }: ItemProps) => (
     >
       {value}{suffix}
     </Typography>
-  </Box>
+  </ButtonBase>
 ));
 
 Item.displayName = 'Item';
@@ -152,7 +160,7 @@ const VerticalScrollSelector = ({
         onChange(pendingValueRef.current);
       }
     }, 150);
-  }, [values, itemHeight, selectedValue, onChange]);
+  }, [values, itemHeight, centerOffset, selectedValue, onChange]);
 
   return (
     <Box sx={{ position: 'relative', height: containerHeight, overflow: 'hidden', width: '100%' }}>

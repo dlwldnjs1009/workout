@@ -43,8 +43,9 @@ export function usePoseDetection(
   const [error, setError] = useState<string | null>(null);
 
   const animationFrameRef = useRef<number | null>(null);
+  const detectLoopRef = useRef<() => void>(() => undefined);
   const lastVideoTimeRef = useRef(-1);
-  const fpsCounterRef = useRef({ frames: 0, lastTime: performance.now() });
+  const fpsCounterRef = useRef({ frames: 0, lastTime: 0 });
   // Note: targetFps is available for future throttling implementation
   void targetFps;
 
@@ -89,7 +90,7 @@ export function usePoseDetection(
     const video = videoRef.current;
 
     if (!video || !poseService.isReady() || video.paused || video.ended) {
-      animationFrameRef.current = requestAnimationFrame(detectLoop);
+      animationFrameRef.current = requestAnimationFrame(detectLoopRef.current);
       return;
     }
 
@@ -125,8 +126,12 @@ export function usePoseDetection(
       }
     }
 
-    animationFrameRef.current = requestAnimationFrame(detectLoop);
+    animationFrameRef.current = requestAnimationFrame(detectLoopRef.current);
   }, [videoRef, updateLandmarks, setFps]);
+
+  useEffect(() => {
+    detectLoopRef.current = detectLoop;
+  }, [detectLoop]);
 
   // 감지 시작
   const startDetection = useCallback(() => {
@@ -139,9 +144,9 @@ export function usePoseDetection(
     fpsCounterRef.current = { frames: 0, lastTime: performance.now() };
 
     if (animationFrameRef.current === null) {
-      animationFrameRef.current = requestAnimationFrame(detectLoop);
+      animationFrameRef.current = requestAnimationFrame(detectLoopRef.current);
     }
-  }, [isInitialized, enabled, setIsDetecting, detectLoop]);
+  }, [isInitialized, enabled, setIsDetecting]);
 
   // 감지 중지
   const stopDetection = useCallback(() => {
@@ -159,7 +164,7 @@ export function usePoseDetection(
   // isDetecting 상태 변경에 따른 루프 제어
   useEffect(() => {
     if (isDetecting && animationFrameRef.current === null && isInitialized) {
-      animationFrameRef.current = requestAnimationFrame(detectLoop);
+      animationFrameRef.current = requestAnimationFrame(detectLoopRef.current);
     }
 
     return () => {
@@ -168,7 +173,7 @@ export function usePoseDetection(
         animationFrameRef.current = null;
       }
     };
-  }, [isDetecting, isInitialized, detectLoop]);
+  }, [isDetecting, isInitialized]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {

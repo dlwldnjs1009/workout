@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { 
   Box, Typography, Button, Grid, CircularProgress, 
   Dialog, DialogTitle, DialogContent, DialogActions, 
@@ -40,6 +40,7 @@ const Routines = () => {
   const exercises = useWorkoutStore((state) => state.exercises);
   const fetchExercises = useWorkoutStore((state) => state.fetchExercises);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [open, setOpen] = useState(false);
   
   // Feedback & Deletion States
@@ -48,7 +49,7 @@ const Routines = () => {
   const [idToConfirm, setIdToConfirm] = useState<number | null>(null);
   const toast = useToast();
 
-  const { control, register, handleSubmit, reset, formState: { errors } } = useForm<RoutineFormData>({
+  const { control, register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<RoutineFormData>({
     resolver: zodResolver(routineSchema),
     defaultValues: {
       name: '',
@@ -61,7 +62,9 @@ const Routines = () => {
 
   const { activeRoutineId, startRoutine } = useWorkoutSessionStore();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
     try {
       const [routinesData] = await Promise.all([
         workoutService.getRoutines(),
@@ -70,23 +73,27 @@ const Routines = () => {
       setRoutines(routinesData);
     } catch (error) {
       console.error('Failed to fetch data', error);
+      setRoutines([]);
+      setFetchError(true);
+      toast.error('루틴을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchExercises, toast]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleCreate = async (data: RoutineFormData) => {
     try {
       await workoutService.createRoutine(data);
       setOpen(false);
       reset();
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Failed to create routine', error);
+      toast.error('루틴을 만들지 못했습니다. 다시 시도해 주세요.');
     }
   };
 
@@ -118,6 +125,32 @@ const Routines = () => {
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+  if (fetchError) {
+    return (
+      <Box sx={{ pb: 12, px: isMobile ? 1 : 0 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            border: `1px solid ${theme.palette.divider}`,
+            textAlign: 'center',
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Typography variant="h6" fontWeight="700" gutterBottom>
+            루틴을 불러오지 못했어요
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            네트워크 상태를 확인한 뒤 다시 시도해 주세요.
+          </Typography>
+          <Button variant="contained" onClick={fetchData} sx={{ borderRadius: '12px', fontWeight: 700 }}>
+            다시 시도
+          </Button>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ pb: 12, px: isMobile ? 1 : 0 }}>
@@ -361,8 +394,10 @@ const Routines = () => {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Button onClick={() => setOpen(false)} sx={{ borderRadius: '12px', color: 'text.secondary', fontWeight: 600 }}>취소</Button>
-            <Button type="submit" variant="contained" sx={{ borderRadius: '12px', fontWeight: 700, px: 3 }}>만들기</Button>
+            <Button disabled={isSubmitting} onClick={() => setOpen(false)} sx={{ borderRadius: '12px', color: 'text.secondary', fontWeight: 600 }}>취소</Button>
+            <Button disabled={isSubmitting} type="submit" variant="contained" sx={{ borderRadius: '12px', fontWeight: 700, px: 3 }}>
+              {isSubmitting ? '만드는 중...' : '만들기'}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>

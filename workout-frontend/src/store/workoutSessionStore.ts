@@ -1,5 +1,28 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getLocalDateString } from '../utils/date';
+
+interface WipSetRecord {
+  setNumber?: number;
+  reps?: number;
+  weight?: number;
+  duration?: number;
+  rpe?: number;
+  completed?: boolean;
+}
+
+interface WipExerciseRecord {
+  exerciseId?: number;
+  exerciseName?: string;
+  sets?: Array<WipSetRecord | undefined>;
+}
+
+interface WipWorkoutSession {
+  date?: string;
+  duration?: number;
+  notes?: string;
+  exercisesPerformed?: Array<WipExerciseRecord | undefined>;
+}
 
 interface WorkoutSessionState {
   timerSeconds: number;
@@ -12,7 +35,7 @@ interface WorkoutSessionState {
   restTimerStartedAt: number | null;
   restTimerFinished: boolean;
 
-  wipSession: any | null;
+  wipSession: WipWorkoutSession | null;
   wipSavedDate: string | null;
   activeRoutineId: number | null;
 
@@ -27,7 +50,7 @@ interface WorkoutSessionState {
   updateRestTimer: () => void;
   dismissRestTimerAlert: () => void;
 
-  saveWipSession: (session: any) => void;
+  saveWipSession: (session: Partial<WipWorkoutSession>) => void;
   clearWipSession: () => void;
   startRoutine: (id: number) => void;
   endRoutine: () => void;
@@ -105,7 +128,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
       
       saveWipSession: (session) => set((state) => ({
         wipSession: { ...state.wipSession, ...session },
-        wipSavedDate: new Date().toISOString().split('T')[0]
+        wipSavedDate: getLocalDateString()
       })),
 
       clearWipSession: () => set({

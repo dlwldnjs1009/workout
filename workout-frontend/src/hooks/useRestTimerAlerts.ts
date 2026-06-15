@@ -10,9 +10,20 @@ let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextConstructor = window.AudioContext
+      || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      throw new Error('AudioContext is not available');
+    }
+
+    audioCtx = new AudioContextConstructor();
   }
   return audioCtx;
+}
+
+function isAlertThreshold(seconds: number): seconds is typeof ALERT_THRESHOLDS[number] {
+  return ALERT_THRESHOLDS.includes(seconds as typeof ALERT_THRESHOLDS[number]);
 }
 
 function playBeep(frequency: number, durationMs: number, volume = 0.3) {
@@ -79,7 +90,7 @@ export function useRestTimerAlerts() {
   // Countdown alerts at specific thresholds
   useEffect(() => {
     if (!isRunning) return;
-    if (!ALERT_THRESHOLDS.includes(restTimerSeconds as any)) return;
+    if (!isAlertThreshold(restTimerSeconds)) return;
     if (firedRef.current.has(restTimerSeconds)) return;
 
     firedRef.current.add(restTimerSeconds);

@@ -1,33 +1,39 @@
-import { useEffect, useState } from 'react';
-import { Box, Typography, TextField, CircularProgress, InputAdornment, MenuItem, Select, FormControl, useTheme } from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
+import { Box, Typography, TextField, CircularProgress, InputAdornment, MenuItem, Select, FormControl, useTheme, Button, InputLabel } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { useWorkoutStore } from '../store/workoutStore';
 import ExerciseCard from '../components/ExerciseCard';
 import { useToast } from '../components/ToastProvider';
+import EmptyState from '../components/EmptyState';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 
 const ExerciseLibrary = () => {
   const exercises = useWorkoutStore((state) => state.exercises);
   const fetchExercises = useWorkoutStore((state) => state.fetchExercises);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const theme = useTheme();
   const toast = useToast();
 
-  useEffect(() => {
-    const loadExercises = async () => {
-      try {
-        await fetchExercises();
-      } catch (error) {
-        console.error('Failed to fetch exercises', error);
-        toast.error('운동 종목을 불러오지 못했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadExercises();
+  const loadExercises = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      await fetchExercises();
+    } catch (error) {
+      console.error('Failed to fetch exercises', error);
+      setError(true);
+      toast.error('운동 종목을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
   }, [fetchExercises, toast]);
+
+  useEffect(() => {
+    loadExercises();
+  }, [loadExercises]);
 
   const filteredExercises = exercises.filter(exercise => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -37,6 +43,17 @@ const ExerciseLibrary = () => {
   });
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+  if (error) {
+    return (
+      <EmptyState
+        icon={<FitnessCenterIcon />}
+        title="운동 종목을 불러오지 못했어요"
+        description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+        action={<Button variant="contained" onClick={loadExercises}>다시 시도</Button>}
+        height="420px"
+      />
+    );
+  }
 
   return (
     <Box>
@@ -51,7 +68,8 @@ const ExerciseLibrary = () => {
         <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
           <TextField
             fullWidth
-            placeholder="운동 검색..."
+            label="운동 검색"
+            placeholder="운동 이름 또는 근육 검색"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             variant="filled"
@@ -70,8 +88,11 @@ const ExerciseLibrary = () => {
               }
             }}
           />
-          <FormControl sx={{ minWidth: 200 }}>
+          <FormControl sx={{ minWidth: 200 }} variant="filled">
+            <InputLabel id="exercise-category-filter-label">카테고리</InputLabel>
             <Select
+              labelId="exercise-category-filter-label"
+              label="카테고리"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               displayEmpty

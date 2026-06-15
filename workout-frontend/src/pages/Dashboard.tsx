@@ -124,27 +124,32 @@ const useDashboardData = () => {
   const [dashboardData, setDashboardData] = useState<WorkoutDashboardData | null>(null);
   const [dietSummary, setDietSummary] = useState<DietDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const [workoutData, dietData] = await Promise.all([
-          workoutService.getWorkoutDashboard(tz),
-          dietService.getTodayDietSummary(tz)
-        ]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const [workoutData, dietData] = await Promise.all([
+        workoutService.getWorkoutDashboard(tz),
+        dietService.getTodayDietSummary(tz)
+      ]);
 
-        setDashboardData(workoutData);
-        setDietSummary(dietData);
-      } catch (error) {
-        console.error('Failed to fetch data', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+      setDashboardData(workoutData);
+      setDietSummary(dietData);
+    } catch (error) {
+      console.error('Failed to fetch data', error);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -168,6 +173,8 @@ const useDashboardData = () => {
     dashboardData,
     dietSummary,
     loading,
+    error,
+    retry: fetchData,
     greeting,
     selectedDate,
     setSelectedDate,
@@ -495,6 +502,8 @@ const Dashboard = () => {
     dashboardData,
     dietSummary,
     loading,
+    error,
+    retry,
     greeting,
     selectedDate,
     setSelectedDate,
@@ -515,8 +524,22 @@ const Dashboard = () => {
   useCallback((session: WorkoutDashboardData['recentSessions'][0]) => {
     navigate('/log-workout', { state: { previousSession: session } });
   }, [navigate]);
-  if (loading || !dashboardData || !dietSummary) {
+  if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  if (error || !dashboardData || !dietSummary) {
+    return (
+      <Box sx={{ pb: 8, maxWidth: '1200px', mx: 'auto' }}>
+        <EmptyState
+          icon={<ShowChartIcon />}
+          title="대시보드를 불러오지 못했어요"
+          description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+          action={<Button variant="contained" onClick={retry}>다시 시도</Button>}
+          height="420px"
+        />
+      </Box>
+    );
   }
 
   return (

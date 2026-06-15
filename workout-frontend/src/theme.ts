@@ -270,7 +270,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
             border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
             padding: '24px',
             backgroundColor: isDark ? PALETTE.PAPER_DARK : PALETTE.PAPER_LIGHT,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           },
         },
       },
@@ -321,7 +321,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
             '& .MuiOutlinedInput-root': {
               borderRadius: '16px',
               backgroundColor: isDark ? PALETTE.GREY_100_DARK : PALETTE.GREY_50_LIGHT,
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               '& fieldset': {
                 borderColor: 'transparent',
               },

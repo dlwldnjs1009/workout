@@ -20,9 +20,11 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import {useNavigate} from 'react-router-dom';
 import SuccessFeedback from '../components/SuccessFeedback';
+import BottomCTA from '../components/BottomCTA';
 import {dietService} from '../services/dietService';
 import { useToast } from '../components/ToastProvider';
 import {type MealType} from '../types';
+import { getLocalDateString } from '../utils/date';
 
 const foodEntrySchema = z.object({
     mealType: z.enum(['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']),
@@ -162,7 +164,7 @@ const MealSection = memo(({
                                 bgcolor: 'background.paper',
                                 border: '1px solid',
                                 borderColor: 'divider',
-                                transition: 'all 0.2s ease-in-out',
+                                transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out',
                                 '&:hover': {
                                     borderColor: 'primary.main',
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
@@ -353,6 +355,7 @@ MealSection.displayName = 'MealSection';
 
 const DietLog = () => {
     const [loading, setLoading] = useState(false);
+    const [dateLoadError, setDateLoadError] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const navigate = useNavigate();
     const theme = useTheme();
@@ -361,7 +364,7 @@ const DietLog = () => {
     const {control, register, handleSubmit, watch, reset, formState: {isDirty}} = useForm<DietSessionFormData>({
         resolver: zodResolver(dietSessionSchema),
         defaultValues: {
-            date: new Date().toISOString().split('T')[0],
+            date: getLocalDateString(),
             notes: '',
             foodEntries: []
         }
@@ -394,6 +397,7 @@ const DietLog = () => {
     useEffect(() => {
         const fetchSession = async () => {
             setLoading(true);
+            setDateLoadError(false);
             try {
                 // 전체 조회 대신 날짜별 단건 조회로 최적화 (네트워크/DB 부하 감소)
                 const sessionForDate = await dietService.getDietSessionByDate(watchDate);
@@ -420,6 +424,12 @@ const DietLog = () => {
                 }
             } catch (error) {
                 console.error("Error fetching diet session", error);
+                setDateLoadError(true);
+                reset({
+                    date: watchDate,
+                    notes: '',
+                    foodEntries: []
+                });
                 toast.error('식단 기록을 불러오지 못했습니다.');
             } finally {
                 setLoading(false);
@@ -429,6 +439,11 @@ const DietLog = () => {
     }, [watchDate, reset, toast]);
 
     const onSubmit = async (data: DietSessionFormData) => {
+        if (dateLoadError) {
+            toast.error('날짜 정보를 다시 불러온 뒤 저장해 주세요.');
+            return;
+        }
+
         try {
             await dietService.createDietSession({
                 date: data.date,
@@ -452,6 +467,26 @@ const DietLog = () => {
             fat: 0
         });
     };
+
+    const saveButton = (
+        <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={loading || dateLoadError || (!isDirty && foodEntries.length === 0)}
+            fullWidth
+            sx={{
+                height: '56px',
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                borderRadius: '16px',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+                textTransform: 'none'
+            }}
+        >
+            {loading ? '불러오는 중...' : '저장하기'}
+        </Button>
+    );
 
     return (
         <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{pb: 16}}>
@@ -602,35 +637,23 @@ const DietLog = () => {
                 </Grid>
             </Grid>
 
-            <Box
-                sx={{
-                    position: 'fixed',
-                    bottom: isMobile ? 80 : 32,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 'calc(100% - 32px)',
-                    maxWidth: '500px',
-                    zIndex: 1000,
-                }}
-            >
-                <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    disabled={loading || (!isDirty && foodEntries.length === 0)}
-                    fullWidth
+            {isMobile ? (
+                <BottomCTA>{saveButton}</BottomCTA>
+            ) : (
+                <Box
                     sx={{
-                        height: '56px',
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        borderRadius: '16px',
-                        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
-                        textTransform: 'none'
+                        position: 'fixed',
+                        bottom: 32,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 'calc(100% - 32px)',
+                        maxWidth: '500px',
+                        zIndex: 1000,
                     }}
                 >
-                    저장하기
-                </Button>
-            </Box>
+                    {saveButton}
+                </Box>
+            )}
 
             <SuccessFeedback
                 open={showSuccess}

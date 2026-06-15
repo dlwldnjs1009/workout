@@ -54,6 +54,25 @@ const BOTTOM_NAV_ITEMS = [
   { text: '진행', icon: <ShowChartIcon />, path: '/progress' },
 ] as const;
 
+const getCurrentTitle = (pathname: string) => {
+  if (pathname === '/') return '홈';
+  if (pathname === '/log-workout') return '기록';
+  if (pathname === '/routines') return '루틴';
+  if (pathname === '/diet-log') return '식단';
+  if (pathname === '/progress') return '진행';
+  if (pathname === '/exercises') return '운동 종목';
+  if (pathname === '/history') return '히스토리';
+  if (pathname === '/settings') return '설정';
+  if (pathname.startsWith('/sessions/')) return '세션 상세';
+  return 'Workout';
+};
+
+const getBottomNavValue = (pathname: string): string | false => {
+  if (BOTTOM_NAV_ITEMS.some(item => item.path === pathname)) return pathname;
+  if (pathname === '/history' || pathname.startsWith('/sessions/')) return '/progress';
+  return false;
+};
+
 // Sub-components
 
 interface UserMenuProps {
@@ -99,7 +118,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, mode, onThemeChange, onLogout
         sx={{
           p: 0.5,
           border: '2px solid transparent',
-          transition: 'all 0.2s ease',
+          transition: 'border-color 0.2s ease, transform 0.2s ease',
           '&:hover': {
             border: `2px solid ${theme.palette.divider}`,
             transform: 'scale(1.05)',
@@ -222,7 +241,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, mode, onThemeChange, onLogout
 
 interface FloatingBottomNavProps {
   scrollDirection: 'up' | 'down' | null;
-  currentPath: string;
+  currentPath: string | false;
   onNavigate: (path: string) => void;
 }
 
@@ -270,7 +289,7 @@ const FloatingBottomNav: React.FC<FloatingBottomNavProps> = ({ scrollDirection, 
                 '& .MuiBottomNavigationAction-root': {
                   minWidth: 'auto',
                   padding: '8px 0',
-                  transition: 'all 0.2s ease',
+                  transition: 'color 0.2s ease, transform 0.2s ease',
                   '&.Mui-selected': {
                     '& .MuiSvgIcon-root': {
                       transform: 'scale(1.1)',
@@ -375,7 +394,7 @@ const Layout = () => {
                         letterSpacing: '-0.01em'
                       }}
                     >
-                      {BOTTOM_NAV_ITEMS.find(item => item.path === location.pathname)?.text || 'Workout'}
+                      {getCurrentTitle(location.pathname)}
                     </Typography>
                   )}
 
@@ -396,7 +415,7 @@ const Layout = () => {
                               borderRadius: '16px',
                               px: 2,
                               py: 1,
-                              transition: 'all 0.2s ease',
+                              transition: 'color 0.2s ease, background-color 0.2s ease',
                               '&:hover': {
                                 bgcolor: isActive ? 'rgba(49, 130, 246, 0.15)' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
                               }
@@ -431,7 +450,7 @@ const Layout = () => {
       {isMobile && (
         <FloatingBottomNav
           scrollDirection={scrollDirection}
-          currentPath={location.pathname}
+          currentPath={getBottomNavValue(location.pathname)}
           onNavigate={handleNavigate}
         />
       )}
