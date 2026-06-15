@@ -87,10 +87,11 @@ const WorkoutTimer = ({ onTick }: { onTick?: (seconds: number) => void }) => {
         {formatTime(timerSeconds)}
       </Typography>
       <Box sx={{ display: 'flex', gap: 2 }}>
-        <IconButton 
-            onClick={toggle} 
-            sx={{ 
-                bgcolor: isRunning ? (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#f2f4f6') : 'primary.main', 
+        <IconButton
+            onClick={toggle}
+            aria-label={isRunning ? '타이머 일시정지' : '타이머 시작'}
+            sx={{
+                bgcolor: isRunning ? (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#f2f4f6') : 'primary.main',
                 color: isRunning ? 'text.secondary' : '#fff',
                 width: 64,
                 height: 64,
@@ -106,10 +107,11 @@ const WorkoutTimer = ({ onTick }: { onTick?: (seconds: number) => void }) => {
         >
           {isRunning ? <PauseIcon sx={{ fontSize: 32 }} /> : <PlayArrowIcon sx={{ fontSize: 32 }} />}
         </IconButton>
-        <IconButton 
-            onClick={reset} 
-            sx={{ 
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#f2f4f6', 
+        <IconButton
+            onClick={reset}
+            aria-label="타이머 초기화"
+            sx={{
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#f2f4f6',
                 color: 'text.secondary',
                 width: 64,
                 height: 64,

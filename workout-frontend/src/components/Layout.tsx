@@ -240,7 +240,7 @@ const FloatingBottomNav: React.FC<FloatingBottomNavProps> = ({ scrollDirection, 
           transition={{ type: 'spring' as const, damping: 25, stiffness: 300 }}
           style={{
             position: 'fixed',
-            bottom: 24,
+            bottom: 'calc(24px + env(safe-area-inset-bottom))',
             left: 16,
             right: 16,
             zIndex: 1100,
@@ -321,7 +321,7 @@ const Layout = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default', pb: isMobile ? 14 : 0 }}>
+    <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default', pb: isMobile ? 'calc(112px + env(safe-area-inset-bottom))' : 0 }}>
       {/* Sticky Header with Enhanced Glassmorphism */}
       <AnimatePresence>
         {scrollDirection !== 'down' && (

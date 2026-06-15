@@ -79,12 +79,15 @@ export function useRestTimerAlerts() {
         vibrate(300);
         break;
       case 3:
+        vibrate(50);
         playBeep(523, 120);  // C5 (도)
         break;
       case 2:
+        vibrate(50);
         playBeep(659, 150);  // E5 (미)
         break;
       case 1:
+        vibrate(50);
         playBeep(784, 180);  // G5 (솔)
         break;
     }

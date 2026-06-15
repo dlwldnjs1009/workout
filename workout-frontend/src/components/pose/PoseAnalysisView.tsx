@@ -290,7 +290,7 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
 
           {/* 닫기 버튼 */}
           {onClose && (
-            <IconButton onClick={onClose} size="small">
+            <IconButton onClick={onClose} size="small" aria-label="닫기">
               <Close />
             </IconButton>
           )}
@@ -418,6 +418,7 @@ export function PoseAnalysisView({ onClose, onSessionComplete }: PoseAnalysisVie
         {isActive && (
           <IconButton
             onClick={switchCamera}
+            aria-label="카메라 전환"
             sx={{
               position: 'absolute',
               top: 8,

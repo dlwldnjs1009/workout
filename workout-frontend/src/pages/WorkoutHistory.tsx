@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, memo } from 'react';
-import { Box, Typography, Paper, CircularProgress, IconButton, Stack, useTheme, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, IconButton, Stack, useTheme } from '@mui/material';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth } from 'date-fns';
 import { workoutService } from '../services/workoutService';
 import type { WorkoutSession } from '../types';
@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastProvider';
 
 // 세션 아이템 컴포넌트 분리 및 메모이제이션
 interface SessionItemProps {
@@ -32,6 +33,16 @@ const SessionItem = memo(({ session, onNavigate, onDelete, onRepeat, dividerColo
   return (
     <Paper
       onClick={() => onNavigate(session.id)}
+      role="button"
+      tabIndex={0}
+      aria-label={`${session.notes || '운동 세션'} 상세 보기`}
+      onKeyDown={(e) => {
+        // 카드 자체 포커스 시에만 (내부 반복/삭제 버튼 키 입력은 통과)
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onNavigate(session.id);
+        }
+      }}
       elevation={0}
       sx={{
         p: 2.5,
@@ -88,9 +99,7 @@ const WorkoutHistory = () => {
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [idToConfirm, setIdToConfirm] = useState<number | null>(null);
-  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
-    open: false, message: '', severity: 'success'
-  });
+  const toast = useToast();
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -103,10 +112,11 @@ const WorkoutHistory = () => {
       setSessions(data);
     } catch (error) {
       console.error("Failed to fetch sessions", error);
+      toast.error('운동 기록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
-  }, [currentDate]);
+  }, [currentDate, toast]);
 
   useEffect(() => {
     fetchSessions();
@@ -136,10 +146,10 @@ const WorkoutHistory = () => {
     try {
         await workoutService.deleteSession(idToConfirm);
         setSessions(prev => prev.filter(s => s.id !== idToConfirm));
-        setSnackbar({ open: true, message: '삭제 완료', severity: 'success' });
+        toast.success('삭제 완료');
     } catch (error) {
         console.error("Failed to delete", error);
-        setSnackbar({ open: true, message: '삭제 실패', severity: 'error' });
+        toast.error('삭제 실패');
     } finally {
         setIdToConfirm(null);
     }
@@ -224,17 +234,6 @@ const WorkoutHistory = () => {
         color="error"
         confirmText="삭제"
       />
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={2000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity={snackbar.severity} sx={{ borderRadius: '12px', fontWeight: 600 }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

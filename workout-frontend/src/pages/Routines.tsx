@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Grid, CircularProgress, 
   Dialog, DialogTitle, DialogContent, DialogActions, 
   TextField, MenuItem, FormControl, InputLabel, Select, Chip, OutlinedInput,
-  Paper, IconButton, useTheme, useMediaQuery, Stack, Snackbar, Alert
+  Paper, IconButton, useTheme, useMediaQuery, Stack
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastProvider';
 
 const routineSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -45,9 +46,7 @@ const Routines = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [idToConfirm, setIdToConfirm] = useState<number | null>(null);
-  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
-    open: false, message: '', severity: 'success'
-  });
+  const toast = useToast();
 
   const { control, register, handleSubmit, reset, formState: { errors } } = useForm<RoutineFormData>({
     resolver: zodResolver(routineSchema),
@@ -103,10 +102,10 @@ const Routines = () => {
       setDeletingId(id);
       await workoutService.deleteRoutine(id);
       setRoutines(routines.filter(r => r.id !== id));
-      setSnackbar({ open: true, message: '루틴 삭제 완료', severity: 'success' });
+      toast.success('루틴 삭제 완료');
     } catch (error) {
       console.error('Failed to delete routine', error);
-      setSnackbar({ open: true, message: '루틴 삭제 중 오류가 발생했습니다.', severity: 'error' });
+      toast.error('루틴 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingId(null);
       setIdToConfirm(null);
@@ -377,17 +376,6 @@ const Routines = () => {
         color="error"
         confirmText="삭제"
       />
-
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={4000} 
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity={snackbar.severity} sx={{ borderRadius: '12px', fontWeight: 600 }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

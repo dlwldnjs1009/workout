@@ -4,6 +4,7 @@ import type { PaletteMode } from '@mui/material';
 import { useMemo, lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ToastProvider } from './components/ToastProvider';
 import { getTheme } from './theme';
 import { useThemeStore } from './store/themeStore';
 
@@ -54,27 +55,29 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <ScrollToTop />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <ToastProvider>
+        <ScrollToTop />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/log-workout" element={<WorkoutLog />} />
-              <Route path="/diet-log" element={<DietLog />} />
-              <Route path="/exercises" element={<ExerciseLibrary />} />
-              <Route path="/routines" element={<Routines />} />
-              <Route path="/progress" element={<Progress />} />
-              <Route path="/sessions/:id" element={<SessionDetail />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/history" element={<WorkoutHistory />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/log-workout" element={<WorkoutLog />} />
+                <Route path="/diet-log" element={<DietLog />} />
+                <Route path="/exercises" element={<ExerciseLibrary />} />
+                <Route path="/routines" element={<Routines />} />
+                <Route path="/progress" element={<Progress />} />
+                <Route path="/sessions/:id" element={<SessionDetail />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/history" element={<WorkoutHistory />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

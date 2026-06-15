@@ -8,6 +8,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import HistoryIcon from '@mui/icons-material/History';
 import { useWorkoutStore } from '../store/workoutStore';
+import { useToast } from '../components/ToastProvider';
 
 const WeeklyWorkoutsChart = lazy(() => import('../components/WeeklyWorkoutsChart'));
 const ProgressVolumeChart = lazy(() => import('../components/ProgressVolumeChart'));
@@ -17,6 +18,7 @@ const Progress = () => {
     const fetchSessions = useWorkoutStore((state) => state.fetchSessions);
     const [loading, setLoading] = useState(true);
     const theme = useTheme();
+    const toast = useToast();
 
     useEffect(() => {
         const loadSessions = async () => {
@@ -24,13 +26,14 @@ const Progress = () => {
                 await fetchSessions();
             } catch (error) {
                 console.error('Failed to fetch sessions', error);
+                toast.error('운동 기록을 불러오지 못했습니다.');
             } finally {
                 setLoading(false);
             }
         };
 
         loadSessions();
-    }, [fetchSessions]);
+    }, [fetchSessions, toast]);
 
     // useMemo로 세션 볼륨 계산 캐싱
     const calculateSessionVolume = useCallback((session: WorkoutSession) => {

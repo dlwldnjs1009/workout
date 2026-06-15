@@ -5,7 +5,7 @@ interface BottomCTAProps {
   children: React.ReactNode;
   /**
    * FloatingBottomNav가 페이지에 렌더링되는지 여부.
-   * true면 BottomCTA는 Nav 위쪽으로 스택(bottom: 96px).
+   * true면 BottomCTA는 Nav 위쪽으로 스택(bottom: 96px + safe-area).
    * false면 하단에 더 가깝게 붙음(bottom: 16px + safe-area).
    */
   stackAboveBottomNav?: boolean;
@@ -30,7 +30,7 @@ const BottomCTA: React.FC<BottomCTAProps> = ({ children, stackAboveBottomNav = t
         position: 'fixed',
         left: 0,
         right: 0,
-        bottom: stackAboveBottomNav ? 96 : 0,
+        bottom: stackAboveBottomNav ? 'calc(96px + env(safe-area-inset-bottom))' : 0,
         zIndex: 1099, // FloatingBottomNav(1100)보다 아래 → 시각적 스택은 위지만 겹침 발생 시 Nav 우선
         px: 2,
         pt: 1.5,

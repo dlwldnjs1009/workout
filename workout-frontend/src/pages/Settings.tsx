@@ -6,6 +6,7 @@ import VerticalScrollSelector from '../components/VerticalScrollSelector';
 import NumberInputSelector from '../components/NumberInputSelector';
 import BottomSheet from '../components/BottomSheet';
 import SuccessFeedback from '../components/SuccessFeedback';
+import { useToast } from '../components/ToastProvider';
 
 const Settings = () => {
   const [profile, setProfile] = useState<Partial<UserProfile>>({});
@@ -13,6 +14,7 @@ const Settings = () => {
   const [showWeightPicker, setShowWeightPicker] = useState(false);
   const [success, setSuccess] = useState(false);
   const theme = useTheme();
+  const toast = useToast();
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -21,10 +23,11 @@ const Settings = () => {
         setProfile(data);
       } catch (error) {
         console.error("Failed to load profile", error);
+        toast.error('프로필을 불러오지 못했습니다.');
       }
     };
     loadProfile();
-  }, []);
+  }, [toast]);
 
   const handleSave = async () => {
     try {
@@ -32,6 +35,7 @@ const Settings = () => {
       setSuccess(true);
     } catch (error) {
       console.error("Failed to update profile", error);
+      toast.error('저장에 실패했습니다. 다시 시도해 주세요.');
     }
   };
 
@@ -43,16 +47,24 @@ const Settings = () => {
       
       <Typography variant="h6" fontWeight="700" sx={{ mb: 2 }}>내 정보</Typography>
       <Paper sx={{ p: 0, overflow: 'hidden', borderRadius: 4, border: `1px solid ${theme.palette.divider}` }} elevation={0}>
-        <Box 
+        <Box
             onClick={() => setShowAgePicker(true)}
+            role="button"
+            tabIndex={0}
+            aria-label="나이 설정"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowAgePicker(true); } }}
             sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: `1px solid ${theme.palette.divider}`, '&:hover': { bgcolor: 'action.hover' } }}
         >
             <Typography fontWeight="600">나이</Typography>
             <Typography color="primary.main" fontWeight="700">{profile.age ? `${profile.age}세` : '설정하기'}</Typography>
         </Box>
         
-        <Box 
+        <Box
             onClick={() => setShowWeightPicker(true)}
+            role="button"
+            tabIndex={0}
+            aria-label="몸무게 설정"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowWeightPicker(true); } }}
             sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
         >
             <Typography fontWeight="600">몸무게</Typography>
