@@ -1,4 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Haptics } from '@capacitor/haptics';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 
 const ALERT_THRESHOLDS = [10, 5, 3, 2, 1] as const;
@@ -40,10 +42,21 @@ function playBeep(frequency: number, durationMs: number, volume = 0.3) {
 }
 
 function vibrate(pattern: number | number[]) {
+  // 네이티브(안드로이드 APK)에서는 @capacitor/haptics 사용 — navigator.vibrate와 달리
+  // 무음/매너 모드에서도 동작. 웹/PWA에서는 navigator.vibrate fallback.
+  if (Capacitor.isNativePlatform()) {
+    const duration = Array.isArray(pattern)
+      ? pattern.reduce((sum, ms) => sum + ms, 0)  // 패턴은 총 길이의 단일 진동으로 근사
+      : pattern;
+    if (duration > 0) {
+      Haptics.vibrate({ duration }).catch(() => { /* unavailable */ });
+    }
+    return;
+  }
   try {
     navigator?.vibrate?.(pattern);
   } catch {
-    // Vibration not available (iOS, etc.)
+    // Vibration not available (iOS Safari/PWA 등)
   }
 }
 

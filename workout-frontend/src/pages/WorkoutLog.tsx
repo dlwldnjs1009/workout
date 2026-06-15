@@ -24,6 +24,7 @@ import type { WorkoutRoutine, WorkoutSession } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 import { useRestTimerAlerts } from '../hooks/useRestTimerAlerts';
+import { useRestTimerNotification } from '../hooks/useRestTimerNotification';
 import { useToast } from '../components/ToastProvider';
 import BottomSheet from '../components/BottomSheet';
 import BottomCTA from '../components/BottomCTA';
@@ -540,8 +541,8 @@ const WorkoutLog = () => {
   const routineToStart = location.state?.routine as WorkoutRoutine | undefined;
   const previousSession = location.state?.previousSession as WorkoutSession | undefined;
   
-  const { 
-      wipSession, saveWipSession, clearWipSession,
+  const {
+      wipSession, wipSavedDate, saveWipSession, clearWipSession,
       restTimerSeconds, isRestTimerRunning, startRestTimer, stopRestTimer,
       updateRestTimer, restTimerDuration, setRestTimerDuration
   } = useWorkoutSessionStore();
@@ -552,6 +553,7 @@ const WorkoutLog = () => {
   const [activePicker, setActivePicker] = useState<{ exerciseIndex: number, setIndex: number, type: 'reps' | 'weight' | 'rpe' } | null>(null);
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<number>>(new Set());
   const { finished: restTimerAlertVisible, dismiss: dismissRestTimerAlert } = useRestTimerAlerts();
+  useRestTimerNotification();
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false);
   const [poseAnalysisOpen, setPoseAnalysisOpen] = useState(false);
   const [lastPoseResult, setLastPoseResult] = useState<{ repCount: number; avgFormScore: number } | null>(null);
@@ -566,28 +568,40 @@ const WorkoutLog = () => {
     return () => clearInterval(interval);
   }, [isRestTimerRunning, updateRestTimer]);
 
+  const today = new Date().toISOString().split('T')[0];
+  // 하루 지난 WIP draft는 만료 처리 — 옛 날짜·옛 기록이 오늘 다시 떠오르는 버그 방지
+  const wipIsStale = !!wipSession && wipSavedDate !== today;
+
   const defaultFormValues = useMemo(() => {
     if (routineToStart || previousSession) {
       return {
-        date: new Date().toISOString().split('T')[0],
+        date: today,
         duration: 0,
         notes: '',
         exercisesPerformed: []
       };
     }
-    if (wipSession) {
+    if (wipSession && !wipIsStale) {
       return {
         ...wipSession,
-        date: wipSession.date || new Date().toISOString().split('T')[0]
+        date: wipSession.date || today
       };
     }
     return {
-      date: new Date().toISOString().split('T')[0],
+      date: today,
       duration: 0,
       notes: '',
       exercisesPerformed: []
     };
-  }, [routineToStart, previousSession, wipSession]);
+  }, [routineToStart, previousSession, wipSession, wipIsStale, today]);
+
+  // 만료된 WIP draft는 storage에서 폐기 (마운트 시 1회). 폼은 이미 fresh로 초기화됨.
+  useEffect(() => {
+    if (wipIsStale) {
+      clearWipSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const methods = useForm<WorkoutSessionFormData>({
     resolver: zodResolver(workoutSessionSchema),

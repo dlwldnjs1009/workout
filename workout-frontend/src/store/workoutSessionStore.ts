@@ -13,6 +13,7 @@ interface WorkoutSessionState {
   restTimerFinished: boolean;
 
   wipSession: any | null;
+  wipSavedDate: string | null;
   activeRoutineId: number | null;
 
   setTimerSeconds: (seconds: number) => void;
@@ -46,6 +47,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
       restTimerFinished: false,
 
       wipSession: null,
+      wipSavedDate: null,
       activeRoutineId: null,
 
       setTimerSeconds: (seconds) => set({ timerSeconds: seconds }),
@@ -101,13 +103,15 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         }
       },
       
-      saveWipSession: (session) => set((state) => ({ 
-        wipSession: { ...state.wipSession, ...session } 
+      saveWipSession: (session) => set((state) => ({
+        wipSession: { ...state.wipSession, ...session },
+        wipSavedDate: new Date().toISOString().split('T')[0]
       })),
-      
-      clearWipSession: () => set({ 
-        wipSession: null, 
-        timerSeconds: 0, 
+
+      clearWipSession: () => set({
+        wipSession: null,
+        wipSavedDate: null,
+        timerSeconds: 0,
         isRunning: false, 
         timerStartedAt: null,
         activeRoutineId: null,
