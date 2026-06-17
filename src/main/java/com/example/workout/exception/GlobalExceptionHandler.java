@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -71,6 +72,18 @@ public class GlobalExceptionHandler {
         log.warn("Validation failed: {}", errors);
         ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /**
+     * AuthenticationException 처리 - 로그인 인증 실패 (아이디 없음/비밀번호 불일치 등)
+     * Spring Security가 던지는 BadCredentialsException 등이 여기에 잡혀 401로 응답한다.
+     * 계정 존재 여부를 노출하지 않도록 아이디·비밀번호를 구분하지 않는 단일 메시지를 사용한다.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
+        log.warn("Authentication failed: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_CREDENTIALS);
+        return ResponseEntity.status(ErrorCode.INVALID_CREDENTIALS.getStatus()).body(response);
     }
 
     /**

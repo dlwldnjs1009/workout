@@ -8,19 +8,19 @@ import lombok.Data;
 
 @Data
 public class RegisterRequest {
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50)
+    @NotBlank(message = "아이디를 입력해 주세요.")
+    @Size(min = 3, max = 50, message = "아이디는 3~50자로 입력해 주세요.")
     private String username;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "이메일을 입력해 주세요.")
+    @Email(message = "올바른 이메일 형식이 아니에요.")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 100, message = "Password must be 8-100 characters")
+    @NotBlank(message = "비밀번호를 입력해 주세요.")
+    @Size(min = 8, max = 100, message = "비밀번호는 8~100자로 입력해 주세요.")
     @Pattern(
         regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
-        message = "Password must contain at least one letter, one number, and one special character (@$!%*?&)"
+        message = "비밀번호는 영문, 숫자, 특수문자(@$!%*?&)를 모두 포함해야 해요."
     )
     private String password;
 }

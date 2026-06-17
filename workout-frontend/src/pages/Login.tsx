@@ -8,8 +8,8 @@ import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
+  username: z.string().min(1, '아이디를 입력해 주세요.'),
+  password: z.string().min(1, '비밀번호를 입력해 주세요.'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -50,8 +50,10 @@ const Login = () => {
       const message = status === 401 || status === 403
         ? '아이디 또는 비밀번호가 일치하지 않아요. 다시 확인해 주세요.'
         : typeof status === 'number' && status >= 500
-          ? '일시적으로 서버와 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
-          : '로그인에 실패했어요. 잠시 후 다시 시도해 주세요.';
+          ? '일시적으로 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+          : typeof status !== 'number'
+            ? '인터넷 연결이 불안정해요. 연결을 확인하고 다시 시도해 주세요.'
+            : '로그인에 실패했어요. 잠시 후 다시 시도해 주세요.';
       setError(message);
       if (import.meta.env.DEV) {
         setErrorDetail(JSON.stringify({
@@ -142,7 +144,7 @@ const Login = () => {
                   required
                   fullWidth
                   id="username"
-                  label="Id"
+                  label="아이디"
                   autoComplete="username"
                   autoFocus
                   error={!!errors.username}
@@ -154,7 +156,7 @@ const Login = () => {
                 <TextField
                   required
                   fullWidth
-                  label="Password"
+                  label="비밀번호"
                   type="password"
                   id="password"
                   autoComplete="current-password"
