@@ -20,8 +20,8 @@ const registerSchema = z.object({
     .min(8, '비밀번호는 8자 이상이어야 해요.')
     .max(100, '비밀번호는 100자 이하로 입력해 주세요.')
     .regex(
-      /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
-      '영문, 숫자, 특수문자(@$!%*?&)를 모두 포함해야 해요.'
+      /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/,
+      '영문·숫자·특수문자를 모두 포함해야 해요.'
     ),
   confirmPassword: z.string().min(1, '비밀번호를 한 번 더 입력해 주세요.')
 }).refine((data) => data.password === data.confirmPassword, {
@@ -107,7 +107,7 @@ const Register = () => {
                   autoComplete="username"
                   autoFocus
                   error={!!errors.username}
-                  helperText={errors.username?.message}
+                  helperText={errors.username?.message ?? '3~50자로 입력해 주세요'}
                   {...register('username')}
                   variant="outlined"
                   InputLabelProps={{ shrink: true }}
@@ -132,7 +132,7 @@ const Register = () => {
                   id="password"
                   autoComplete="new-password"
                   error={!!errors.password}
-                  helperText={errors.password?.message ?? '영문, 숫자, 특수문자(@$!%*?&)를 포함해 8자 이상'}
+                  helperText={errors.password?.message ?? '8자 이상, 영문·숫자·특수문자를 모두 포함'}
                   {...register('password')}
                   variant="outlined"
                   InputLabelProps={{ shrink: true }}

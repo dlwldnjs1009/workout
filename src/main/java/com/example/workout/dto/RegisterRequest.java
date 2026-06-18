@@ -19,8 +19,8 @@ public class RegisterRequest {
     @NotBlank(message = "비밀번호를 입력해 주세요.")
     @Size(min = 8, max = 100, message = "비밀번호는 8~100자로 입력해 주세요.")
     @Pattern(
-        regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
-        message = "비밀번호는 영문, 숫자, 특수문자(@$!%*?&)를 모두 포함해야 해요."
+        regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$",
+        message = "비밀번호는 영문·숫자·특수문자를 모두 포함해야 해요."
     )
     private String password;
 }
