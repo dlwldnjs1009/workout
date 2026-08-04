@@ -15,15 +15,14 @@ import java.util.Optional;
 @Repository
 public interface WorkoutRoutineRepository extends JpaRepository<WorkoutRoutine, Long> {
 
-    // ManyToMany N+1 방지 - EntityGraph 적용
-    @EntityGraph(attributePaths = {"exercises"})
+    @EntityGraph(attributePaths = {"routineExercises", "routineExercises.exerciseType"})
     @Query("SELECT r FROM WorkoutRoutine r WHERE r.user.id = :userId ORDER BY r.createdAt DESC")
     List<WorkoutRoutine> findByUserIdWithExercises(@Param("userId") Long userId);
 
     // 페이지네이션 지원
-    @EntityGraph(attributePaths = {"exercises"})
+    @EntityGraph(attributePaths = {"routineExercises", "routineExercises.exerciseType"})
     Page<WorkoutRoutine> findByUserId(Long userId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"exercises"})
+    @EntityGraph(attributePaths = {"routineExercises", "routineExercises.exerciseType"})
     Optional<WorkoutRoutine> findByIdAndUser_Username(Long id, String username);
 }

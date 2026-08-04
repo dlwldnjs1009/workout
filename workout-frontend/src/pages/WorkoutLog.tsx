@@ -21,7 +21,7 @@ import { Reorder, useDragControls } from 'framer-motion';
 import SuccessFeedback from '../components/SuccessFeedback';
 import { PoseAnalysisView } from '../components/pose';
 import { workoutService } from '../services/workoutService';
-import type { WorkoutRoutine, WorkoutSession } from '../types';
+import type { PreviousExerciseRecords, WorkoutRoutine, WorkoutSession } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 import { useRestTimerAlerts } from '../hooks/useRestTimerAlerts';
@@ -312,12 +312,14 @@ const ExerciseSetCount = ({ index }: { index: number }) => {
 
 const ExerciseSetsList = ({ 
     exerciseIndex, 
+    previousExerciseRecords,
     openPicker, 
     removeSet,
     addSet,
     toggleSetCompletion
 }: { 
     exerciseIndex: number, 
+    previousExerciseRecords?: PreviousExerciseRecords,
     openPicker: (exIdx: number, sIdx: number, type: 'reps' | 'weight' | 'rpe') => void,
     removeSet: (exIdx: number, sIdx: number) => void,
     addSet: (exIdx: number) => void,
@@ -328,7 +330,9 @@ const ExerciseSetsList = ({
 
     return (
         <Stack spacing={1}>
-            {sets?.map((set, sIdx) => (
+            {sets?.map((set, sIdx) => {
+                const previousSet = previousExerciseRecords?.records[sIdx];
+                return (
                 <Box 
                     key={sIdx} 
                     sx={{ 
@@ -358,7 +362,13 @@ const ExerciseSetsList = ({
                     
                     <Typography variant="body2" fontWeight="700" sx={{ minWidth: 20, color: 'text.secondary' }}>{sIdx + 1}</Typography>
                     
-                    <Box sx={{ flex: 1, display: 'flex', gap: 1, overflowX: 'auto' }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                    {previousSet && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                            지난번 {previousSet.weight ?? 0}kg × {previousSet.reps}회{previousSet.rpe != null ? ` · RPE ${previousSet.rpe}` : ''}
+                        </Typography>
+                    )}
+                    <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto' }}>
                         <ButtonBase
                             component="button"
                             type="button"
@@ -390,12 +400,14 @@ const ExerciseSetsList = ({
                             <Typography variant="body1" fontWeight="700">{set.rpe ?? '-'}</Typography>
                         </ButtonBase>
                     </Box>
+                    </Box>
 
                     <IconButton onClick={() => removeSet(exerciseIndex, sIdx)} size="small" aria-label="세트 삭제" sx={{ color: 'text.disabled' }}>
                         <DeleteOutlineIcon fontSize="small" />
                     </IconButton>
                 </Box>
-            ))}
+                );
+            })}
             <Button 
                 fullWidth 
                 startIcon={<AddIcon />} 
@@ -418,6 +430,7 @@ interface SortableExerciseItemProps {
     removeSet: (exIdx: number, sIdx: number) => void;
     addSet: (exIdx: number) => void;
     toggleSetCompletion: (exIdx: number, sIdx: number) => void;
+    previousExerciseRecords?: PreviousExerciseRecords;
     theme: Theme;
 }
 
@@ -431,6 +444,7 @@ const SortableExerciseItem = React.memo(({
     removeSet, 
     addSet, 
     toggleSetCompletion,
+    previousExerciseRecords,
     theme
 }: SortableExerciseItemProps) => {
     const dragControls = useDragControls();
@@ -537,6 +551,7 @@ const SortableExerciseItem = React.memo(({
                     <Box sx={{ p: 2.5, pt: 0, pl: 6 }}>
                         <ExerciseSetsList 
                             exerciseIndex={index} 
+                            previousExerciseRecords={previousExerciseRecords}
                             openPicker={openPicker} 
                             removeSet={removeSet}
                             addSet={addSet}
@@ -550,7 +565,8 @@ const SortableExerciseItem = React.memo(({
 }, (prev, next) => {
     return prev.field.id === next.field.id && 
            prev.index === next.index && 
-           prev.isExpanded === next.isExpanded;
+           prev.isExpanded === next.isExpanded &&
+           prev.previousExerciseRecords === next.previousExerciseRecords;
 });
 
 const areArraysEqual = (left: string[], right: string[]) =>
@@ -585,6 +601,7 @@ const WorkoutLog = () => {
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false);
   const [poseAnalysisOpen, setPoseAnalysisOpen] = useState(false);
   const [lastPoseResult, setLastPoseResult] = useState<{ repCount: number; avgFormScore: number } | null>(null);
+  const [previousRecordsByExerciseId, setPreviousRecordsByExerciseId] = useState<Record<number, PreviousExerciseRecords>>({});
 
   useEffect(() => {
     let interval: number;
@@ -637,6 +654,7 @@ const WorkoutLog = () => {
   });
 
   const { control, register, handleSubmit, setValue, watch, getValues, formState: { isSubmitting } } = methods;
+  const activeExercises = useWatch({ control, name: 'exercisesPerformed' });
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearAutosaveTimer = useCallback(() => {
@@ -689,17 +707,62 @@ const WorkoutLog = () => {
   useEffect(() => {
     if (routineToStart && exercises.length > 0) {
         setValue('notes', routineToStart.name);
-        const routineExercises = routineToStart.exerciseIds.map(exId => {
-            const ex = exercises.find(e => e.id === exId);
+        const routineExercises = (routineToStart.exercises?.length
+            ? [...routineToStart.exercises].sort((left, right) => left.sortOrder - right.sortOrder)
+            : routineToStart.exerciseIds.map((exerciseId, index) => ({
+                exerciseId,
+                sortOrder: index + 1,
+                targetSets: 3,
+                targetReps: 10,
+                restSeconds: 90,
+            }))
+        ).map((routineExercise) => {
+            const ex = exercises.find(e => e.id === routineExercise.exerciseId);
             return {
-                exerciseId: exId,
+                exerciseId: routineExercise.exerciseId,
                 exerciseName: ex?.name || 'Unknown',
-                sets: [{ setNumber: 1, reps: 10, weight: 40 }]
+                sets: Array.from({ length: routineExercise.targetSets }, (_, index) => ({
+                    setNumber: index + 1,
+                    reps: routineExercise.targetReps,
+                    weight: 0,
+                }))
             };
         });
         setValue('exercisesPerformed', routineExercises);
     }
   }, [routineToStart, exercises, setValue]);
+
+  const activeExerciseIds = useMemo(() => (
+    [...new Set((activeExercises ?? []).map((exercise) => exercise.exerciseId))]
+  ), [activeExercises]);
+  const activeExerciseIdsKey = activeExerciseIds.join(',');
+
+  const routineRestSecondsByExerciseId = useMemo(() => Object.fromEntries(
+    (routineToStart?.exercises ?? []).map((exercise) => [exercise.exerciseId, exercise.restSeconds])
+  ), [routineToStart]);
+
+  useEffect(() => {
+    const missingExerciseIds = activeExerciseIds.filter((exerciseId) => previousRecordsByExerciseId[exerciseId] === undefined);
+    if (missingExerciseIds.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(missingExerciseIds.map(async (exerciseId) => [
+      exerciseId,
+      await workoutService.getPreviousExerciseRecords(exerciseId)
+    ] as const)).then((results) => {
+      if (cancelled) return;
+      setPreviousRecordsByExerciseId((current) => ({
+        ...current,
+        ...Object.fromEntries(results),
+      }));
+    }).catch((error) => {
+      console.error('Failed to load previous exercise records', error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeExerciseIdsKey, previousRecordsByExerciseId]);
 
   useEffect(() => {
     if (previousSession && exercises.length > 0) {
@@ -746,6 +809,7 @@ const WorkoutLog = () => {
         date: data.date, 
         duration: data.duration,
         notes: data.notes,
+        routineId: routineToStart?.id,
         exercisesPerformed: data.exercisesPerformed.flatMap(ep =>
           ep.sets.map(s => ({
             exerciseId: ep.exerciseId,
@@ -837,9 +901,14 @@ const WorkoutLog = () => {
       setValue(fieldPath, !current);
       
       if (!current) {
+          const exerciseId = getValues(`exercisesPerformed.${exerciseIndex}.exerciseId`);
+          const restSeconds = routineRestSecondsByExerciseId[exerciseId];
+          if (restSeconds != null) {
+              setRestTimerDuration(restSeconds);
+          }
           startRestTimer();
       }
-  }, [getValues, setValue, startRestTimer]);
+  }, [getValues, setValue, startRestTimer, setRestTimerDuration, routineRestSecondsByExerciseId]);
 
   const openPicker = useCallback((exIdx: number, sIdx: number, type: 'reps' | 'weight' | 'rpe') => {
     setActivePicker({ exerciseIndex: exIdx, setIndex: sIdx, type });
@@ -1201,6 +1270,7 @@ const WorkoutLog = () => {
                         removeSet={removeSet}
                         addSet={addSet}
                         toggleSetCompletion={toggleSetCompletion}
+                        previousExerciseRecords={previousRecordsByExerciseId[field.exerciseId]}
                         theme={theme}
                     />
                 ))}

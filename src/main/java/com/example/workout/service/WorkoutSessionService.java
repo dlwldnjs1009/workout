@@ -1,6 +1,7 @@
 package com.example.workout.service;
 
 import com.example.workout.dto.ExerciseRecordDTO;
+import com.example.workout.dto.PreviousExerciseRecordsDTO;
 import com.example.workout.dto.VolumeDataPointDTO;
 import com.example.workout.dto.WorkoutDashboardDTO;
 import com.example.workout.dto.WorkoutSessionDTO;
@@ -34,6 +35,7 @@ public class WorkoutSessionService {
     private final UserRepository userRepository;
     private final ExerciseTypeRepository exerciseTypeRepository;
     private final ExerciseRecordRepository exerciseRecordRepository;
+    private final WorkoutRoutineRepository workoutRoutineRepository;
     private final WorkoutSessionMapper sessionMapper;
 
 	private User getUser(String username) {
@@ -63,6 +65,11 @@ public class WorkoutSessionService {
 
         session.setDuration(dto.getDuration());
         session.setNotes(dto.getNotes());
+        if (dto.getRoutineId() != null) {
+            WorkoutRoutine routine = workoutRoutineRepository.findByIdAndUser_Username(dto.getRoutineId(), username)
+                .orElseThrow(() -> new ResourceNotFoundException("루틴을 찾을 수 없거나 접근 권한이 없습니다."));
+            session.setRoutine(routine);
+        }
 
         session = sessionRepository.save(session);
 
@@ -223,6 +230,43 @@ public class WorkoutSessionService {
         WorkoutSession session = sessionRepository.findByIdAndUser_Username(sessionId, username)
             .orElseThrow(() -> new ResourceNotFoundException("운동 세션을 찾을 수 없거나 접근 권한이 없습니다."));
         return sessionMapper.toDTO(session);
+    }
+
+    /**
+     * 현재 사용자만 대상으로 해당 종목을 마지막으로 수행한 세션의 세트 기록을 반환한다.
+     * 새 운동인 경우에는 빈 records를 반환해 클라이언트가 별도 예외 처리를 하지 않게 한다.
+     */
+    @Transactional(readOnly = true)
+    public PreviousExerciseRecordsDTO getPreviousExerciseRecords(String username, Long exerciseId) {
+        User user = getUser(username);
+        List<Long> sessionIds = sessionRepository.findMostRecentSessionIdsByUserIdAndExerciseId(
+            user.getId(), exerciseId, PageRequest.of(0, 1));
+
+        if (sessionIds.isEmpty()) {
+            return new PreviousExerciseRecordsDTO(exerciseId, null, List.of());
+        }
+
+        Long sessionId = sessionIds.getFirst();
+        List<ExerciseRecord> previousRecords = exerciseRecordRepository
+            .findBySessionIdAndExerciseTypeIdOrderBySetNumber(sessionId, exerciseId);
+        List<ExerciseRecordDTO> records = previousRecords.stream()
+            .map(record -> new ExerciseRecordDTO(
+                record.getId(),
+                record.getExerciseType().getId(),
+                record.getExerciseType().getName(),
+                record.getSetNumber(),
+                record.getReps(),
+                record.getWeight(),
+                record.getDuration(),
+                record.getRpe()
+            ))
+            .toList();
+
+        LocalDate sessionDate = previousRecords.isEmpty()
+            ? null
+            : previousRecords.getFirst().getSession().getDate().toLocalDate();
+
+        return new PreviousExerciseRecordsDTO(exerciseId, sessionDate, records);
     }
 
     @Transactional

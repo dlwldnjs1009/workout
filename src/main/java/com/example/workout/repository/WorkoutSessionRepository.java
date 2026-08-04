@@ -76,4 +76,12 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
             @Param("userId") Long userId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT s.id FROM WorkoutSession s JOIN s.exercisesPerformed r " +
+           "WHERE s.user.id = :userId AND r.exerciseType.id = :exerciseId " +
+           "ORDER BY s.date DESC, s.id DESC")
+    List<Long> findMostRecentSessionIdsByUserIdAndExerciseId(
+            @Param("userId") Long userId,
+            @Param("exerciseId") Long exerciseId,
+            Pageable pageable);
 }

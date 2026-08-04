@@ -2,6 +2,9 @@ package com.example.workout.service;
 
 import com.example.workout.dto.WorkoutDashboardDTO;
 import com.example.workout.dto.WorkoutSessionDTO;
+import com.example.workout.dto.PreviousExerciseRecordsDTO;
+import com.example.workout.entity.ExerciseRecord;
+import com.example.workout.entity.ExerciseType;
 import com.example.workout.entity.User;
 import com.example.workout.entity.WorkoutSession;
 import com.example.workout.exception.UserNotFoundException;
@@ -9,6 +12,7 @@ import com.example.workout.mapper.WorkoutSessionMapper;
 import com.example.workout.repository.ExerciseRecordRepository;
 import com.example.workout.repository.ExerciseTypeRepository;
 import com.example.workout.repository.UserRepository;
+import com.example.workout.repository.WorkoutRoutineRepository;
 import com.example.workout.repository.WorkoutSessionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +49,9 @@ class WorkoutSessionServiceTest {
 
     @Mock
     private ExerciseRecordRepository exerciseRecordRepository;
+
+    @Mock
+    private WorkoutRoutineRepository workoutRoutineRepository;
 
     @Mock
     private WorkoutSessionMapper sessionMapper;
@@ -145,6 +152,53 @@ class WorkoutSessionServiceTest {
             assertThat(result.getVolumeChartData().get(0).getVolume()).isEqualTo(600.0);
             assertThat(result.getVolumeChartData().get(1).getVolume()).isEqualTo(800.0);
             assertThat(result.getVolumeChartData().get(2).getVolume()).isEqualTo(1000.0);
+        }
+    }
+
+    @Nested
+    @DisplayName("직전 종목 기록 조회")
+    class GetPreviousExerciseRecords {
+
+        @Test
+        @DisplayName("기록이 없는 종목은 빈 목록을 반환한다")
+        void shouldReturnEmptyRecordsWhenExerciseHasNoHistory() {
+            when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(testUser));
+            when(sessionRepository.findMostRecentSessionIdsByUserIdAndExerciseId(
+                eq(testUser.getId()), eq(10L), any(PageRequest.class)))
+                .thenReturn(Collections.emptyList());
+
+            PreviousExerciseRecordsDTO result = workoutSessionService
+                .getPreviousExerciseRecords(TEST_USERNAME, 10L);
+
+            assertThat(result.getExerciseId()).isEqualTo(10L);
+            assertThat(result.getSessionDate()).isNull();
+            assertThat(result.getRecords()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("가장 최근 세션의 같은 종목 세트를 순서대로 반환한다")
+        void shouldReturnRecordsFromMostRecentSession() {
+            ExerciseType exerciseType = new ExerciseType();
+            exerciseType.setId(10L);
+            exerciseType.setName("벤치 프레스");
+
+            WorkoutSession session = createTestSession(100L, LocalDateTime.of(2026, 8, 3, 18, 0));
+            ExerciseRecord firstSet = createRecord(1L, session, exerciseType, 1, 60.0, 8, 8.0);
+            ExerciseRecord secondSet = createRecord(2L, session, exerciseType, 2, 60.0, 8, 8.5);
+
+            when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(testUser));
+            when(sessionRepository.findMostRecentSessionIdsByUserIdAndExerciseId(
+                eq(testUser.getId()), eq(10L), any(PageRequest.class)))
+                .thenReturn(List.of(100L));
+            when(exerciseRecordRepository.findBySessionIdAndExerciseTypeIdOrderBySetNumber(100L, 10L))
+                .thenReturn(List.of(firstSet, secondSet));
+
+            PreviousExerciseRecordsDTO result = workoutSessionService
+                .getPreviousExerciseRecords(TEST_USERNAME, 10L);
+
+            assertThat(result.getSessionDate()).isEqualTo(LocalDate.of(2026, 8, 3));
+            assertThat(result.getRecords()).extracting(record -> record.getSetNumber()).containsExactly(1, 2);
+            assertThat(result.getRecords()).extracting(record -> record.getWeight()).containsExactly(60.0, 60.0);
         }
     }
 
@@ -289,5 +343,18 @@ class WorkoutSessionServiceTest {
         session.setDate(date);
         session.setDuration(60);
         return session;
+    }
+
+    private ExerciseRecord createRecord(Long id, WorkoutSession session, ExerciseType exerciseType,
+                                        int setNumber, double weight, int reps, double rpe) {
+        ExerciseRecord record = new ExerciseRecord();
+        record.setId(id);
+        record.setSession(session);
+        record.setExerciseType(exerciseType);
+        record.setSetNumber(setNumber);
+        record.setWeight(weight);
+        record.setReps(reps);
+        record.setRpe(rpe);
+        return record;
     }
 }

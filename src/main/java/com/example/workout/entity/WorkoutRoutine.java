@@ -5,7 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -45,13 +47,9 @@ public class WorkoutRoutine {
     @Column(nullable = false)
     private Difficulty difficulty;
 
-    @ManyToMany
-    @JoinTable(
-        name = "routine_exercises",
-        joinColumns = @JoinColumn(name = "routine_id"),
-        inverseJoinColumns = @JoinColumn(name = "exercise_id")
-    )
-    private Set<ExerciseType> exercises = new HashSet<>();
+    @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<RoutineExercise> routineExercises = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

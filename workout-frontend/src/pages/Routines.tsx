@@ -6,12 +6,13 @@ import {
   Paper, IconButton, useTheme, useMediaQuery, Stack
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { workoutService } from '../services/workoutService';
-import type { WorkoutRoutine } from '../types';
+import type { RoutineExercise, WorkoutRoutine } from '../types';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,7 +26,13 @@ const routineSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().min(1, 'Description is required'),
   difficulty: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']),
-  exerciseIds: z.array(z.number()).min(1, 'Select at least one exercise'),
+  exercises: z.array(z.object({
+    exerciseId: z.number(),
+    sortOrder: z.number().min(1),
+    targetSets: z.number().min(1).max(20),
+    targetReps: z.number().min(1).max(100),
+    restSeconds: z.number().min(0).max(3600),
+  })).min(1, '운동을 하나 이상 선택해 주세요.'),
   duration: z.number().min(1, 'Duration must be at least 1 minute'),
 });
 
@@ -49,16 +56,17 @@ const Routines = () => {
   const [idToConfirm, setIdToConfirm] = useState<number | null>(null);
   const toast = useToast();
 
-  const { control, register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<RoutineFormData>({
+  const { control, register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<RoutineFormData>({
     resolver: zodResolver(routineSchema),
     defaultValues: {
       name: '',
       description: '',
       difficulty: 'BEGINNER',
-      exerciseIds: [],
+      exercises: [],
       duration: 30
     }
   });
+  const routineExercises = watch('exercises');
 
   const { activeRoutineId, startRoutine } = useWorkoutSessionStore();
 
@@ -95,6 +103,25 @@ const Routines = () => {
       console.error('Failed to create routine', error);
       toast.error('루틴을 만들지 못했습니다. 다시 시도해 주세요.');
     }
+  };
+
+  const updateSelectedExercises = (exerciseIds: number[]) => {
+    const currentById = new Map(routineExercises.map((exercise) => [exercise.exerciseId, exercise]));
+    setValue('exercises', exerciseIds.map((exerciseId, index) => ({
+      ...(currentById.get(exerciseId) ?? {
+        exerciseId,
+        targetSets: 3,
+        targetReps: 10,
+        restSeconds: 90,
+      }),
+      sortOrder: index + 1,
+    })), { shouldValidate: true });
+  };
+
+  const updateRoutineExercise = <K extends keyof RoutineExercise>(index: number, key: K, value: RoutineExercise[K]) => {
+    const next = [...routineExercises];
+    next[index] = { ...next[index], [key]: value };
+    setValue('exercises', next, { shouldValidate: true });
   };
 
   const openDeleteConfirm = (id: number) => {
@@ -237,7 +264,7 @@ const Routines = () => {
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                 <FitnessCenterIcon sx={{ fontSize: 18 }} />
-                <Typography variant="caption" fontWeight="600">{routine.exerciseIds.length}개 운동</Typography>
+                <Typography variant="caption" fontWeight="600">{routine.exercises?.length ?? routine.exerciseIds.length}개 운동</Typography>
               </Box>
             </Box>
 
@@ -354,43 +381,95 @@ const Routines = () => {
                 </Grid>
               </Grid>
               
-              <FormControl fullWidth error={!!errors.exerciseIds}>
+              <FormControl fullWidth error={!!errors.exercises}>
                 <InputLabel>운동 종목 선택</InputLabel>
-                <Controller
-                  name="exerciseIds"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      multiple
-                      input={<OutlinedInput label="운동 종목 선택" sx={{ borderRadius: '16px' }} />}
-                      renderValue={(selected) => (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {selected.map((value) => (
-                            <Chip 
-                              key={value} 
-                              label={exercises.find(e => e.id === value)?.name} 
-                              size="small"
-                              sx={{ borderRadius: '8px' }}
-                            />
-                          ))}
-                        </Box>
-                      )}
-                    >
-                      {exercises.map((exercise) => (
-                        <MenuItem key={exercise.id} value={exercise.id}>
-                          {exercise.name}
-                        </MenuItem>
+                <Select
+                  multiple
+                  value={routineExercises.map((exercise) => exercise.exerciseId)}
+                  onChange={(event) => updateSelectedExercises(event.target.value as number[])}
+                  input={<OutlinedInput label="운동 종목 선택" sx={{ borderRadius: '16px' }} />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip
+                          key={value}
+                          label={exercises.find(e => e.id === value)?.name}
+                          size="small"
+                          sx={{ borderRadius: '8px' }}
+                        />
                       ))}
-                    </Select>
+                    </Box>
                   )}
-                />
-                {errors.exerciseIds && (
+                >
+                  {exercises.map((exercise) => (
+                    <MenuItem key={exercise.id} value={exercise.id}>
+                      {exercise.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.exercises && (
                   <Typography variant="caption" color="error" sx={{ ml: 2, mt: 0.5 }}>
-                    {errors.exerciseIds.message}
+                    {errors.exercises.message}
                   </Typography>
                 )}
               </FormControl>
+
+              {routineExercises.length > 0 && (
+                <Stack spacing={1.5}>
+                  <Typography variant="subtitle2" fontWeight={700}>운동 순서와 목표</Typography>
+                  {routineExercises.map((routineExercise, index) => (
+                    <Paper key={routineExercise.exerciseId} variant="outlined" sx={{ p: 1.5, borderRadius: '16px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1.5 }}>
+                        <Typography variant="body2" fontWeight={700} noWrap>
+                          {index + 1}. {exercises.find((exercise) => exercise.id === routineExercise.exerciseId)?.name}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          aria-label={`${index + 1}번째 운동 삭제`}
+                          onClick={() => updateSelectedExercises(routineExercises.filter((_, itemIndex) => itemIndex !== index).map((item) => item.exerciseId))}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                      <Grid container spacing={1}>
+                        <Grid size={4}>
+                          <TextField
+                            label="세트"
+                            type="number"
+                            size="small"
+                            fullWidth
+                            value={routineExercise.targetSets}
+                            onChange={(event) => updateRoutineExercise(index, 'targetSets', Number(event.target.value))}
+                            inputProps={{ min: 1, max: 20 }}
+                          />
+                        </Grid>
+                        <Grid size={4}>
+                          <TextField
+                            label="횟수"
+                            type="number"
+                            size="small"
+                            fullWidth
+                            value={routineExercise.targetReps}
+                            onChange={(event) => updateRoutineExercise(index, 'targetReps', Number(event.target.value))}
+                            inputProps={{ min: 1, max: 100 }}
+                          />
+                        </Grid>
+                        <Grid size={4}>
+                          <TextField
+                            label="휴식(초)"
+                            type="number"
+                            size="small"
+                            fullWidth
+                            value={routineExercise.restSeconds}
+                            onChange={(event) => updateRoutineExercise(index, 'restSeconds', Number(event.target.value))}
+                            inputProps={{ min: 0, max: 3600 }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ))}
+                </Stack>
+              )}
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>

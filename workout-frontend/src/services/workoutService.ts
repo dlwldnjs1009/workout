@@ -1,5 +1,5 @@
 import api from './api';
-import type { WorkoutRoutine, WorkoutSession, ExerciseType, WorkoutDashboardData } from '../types';
+import type { WorkoutRoutine, WorkoutSession, ExerciseType, WorkoutDashboardData, PreviousExerciseRecords } from '../types';
 
 export const workoutService = {
   getExercises: async (): Promise<ExerciseType[]> => {
@@ -35,6 +35,11 @@ export const workoutService = {
 
   getWorkoutDashboard: async (tz: string): Promise<WorkoutDashboardData> => {
     const response = await api.get<WorkoutDashboardData>(`/sessions/dashboard?tz=${encodeURIComponent(tz)}`);
+    return response.data;
+  },
+
+  getPreviousExerciseRecords: async (exerciseId: number): Promise<PreviousExerciseRecords> => {
+    const response = await api.get<PreviousExerciseRecords>(`/sessions/previous-records/${exerciseId}`);
     return response.data;
   },
   

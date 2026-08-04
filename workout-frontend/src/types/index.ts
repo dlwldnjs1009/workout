@@ -19,8 +19,24 @@ export interface WorkoutRoutine {
   description: string;
   duration: number;
   difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  exercises: RoutineExercise[];
+  /** 이전 API 응답과의 호환용. 새 화면은 exercises를 사용한다. */
   exerciseIds: number[];
   createdAt: string;
+}
+
+export interface RoutineExercise {
+  exerciseId: number;
+  sortOrder: number;
+  targetSets: number;
+  targetReps: number;
+  restSeconds: number;
+}
+
+export interface PreviousExerciseRecords {
+  exerciseId: number;
+  sessionDate: string | null;
+  records: ExerciseRecord[];
 }
 
 export interface ExerciseRecord {
