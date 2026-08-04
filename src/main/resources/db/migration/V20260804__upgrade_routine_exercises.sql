@@ -5,19 +5,22 @@
 -- table did not persist an order or prescription, it receives the safe default
 -- of 3 sets x 10 reps with 90 seconds rest.
 --
--- The old @ManyToMany join table was generated as
---   PRIMARY KEY (exercise_id, routine_id)
--- so that key must be dropped in the same statement that introduces the
--- surrogate id, otherwise MySQL rejects it with ERROR 1068. The pairing stays
--- unique through the uk_routine_exercise constraint added below.
+-- The old @ManyToMany join table has a composite primary key referenced by
+-- two foreign keys. MySQL requires those foreign keys to be temporarily
+-- dropped before replacing that key with the surrogate id; they are recreated
+-- in this same atomic ALTER TABLE statement.
 
 ALTER TABLE routine_exercises
+    DROP FOREIGN KEY FKjpu4f97xq7ll0tchsmrusqpqk,
+    DROP FOREIGN KEY FKtdvobbrx8ftupxhmdxjjlp5of,
     DROP PRIMARY KEY,
     ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST,
     ADD COLUMN sort_order INT NOT NULL DEFAULT 0,
     ADD COLUMN target_sets INT NOT NULL DEFAULT 3,
     ADD COLUMN target_reps INT NOT NULL DEFAULT 10,
-    ADD COLUMN rest_seconds INT NOT NULL DEFAULT 90;
+    ADD COLUMN rest_seconds INT NOT NULL DEFAULT 90,
+    ADD CONSTRAINT fk_routine_exercises_exercise FOREIGN KEY (exercise_id) REFERENCES exercise_types (id),
+    ADD CONSTRAINT fk_routine_exercises_routine FOREIGN KEY (routine_id) REFERENCES workout_routines (id);
 
 UPDATE routine_exercises AS target
 JOIN (
