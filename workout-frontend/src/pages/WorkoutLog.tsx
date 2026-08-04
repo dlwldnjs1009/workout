@@ -21,7 +21,7 @@ import { Reorder, useDragControls } from 'framer-motion';
 import SuccessFeedback from '../components/SuccessFeedback';
 import { PoseAnalysisView } from '../components/pose';
 import { workoutService } from '../services/workoutService';
-import type { PreviousExerciseRecords, WorkoutRoutine, WorkoutSession } from '../types';
+import type { ExerciseProgress, PreviousExerciseRecords, WorkoutRoutine, WorkoutSession } from '../types';
 import { useWorkoutStore } from '../store/workoutStore';
 import { useWorkoutSessionStore } from '../store/workoutSessionStore';
 import { useRestTimerAlerts } from '../hooks/useRestTimerAlerts';
@@ -313,6 +313,7 @@ const ExerciseSetCount = ({ index }: { index: number }) => {
 const ExerciseSetsList = ({ 
     exerciseIndex, 
     previousExerciseRecords,
+    exerciseProgress,
     openPicker, 
     removeSet,
     addSet,
@@ -320,6 +321,7 @@ const ExerciseSetsList = ({
 }: { 
     exerciseIndex: number, 
     previousExerciseRecords?: PreviousExerciseRecords,
+    exerciseProgress?: ExerciseProgress,
     openPicker: (exIdx: number, sIdx: number, type: 'reps' | 'weight' | 'rpe') => void,
     removeSet: (exIdx: number, sIdx: number) => void,
     addSet: (exIdx: number) => void,
@@ -408,6 +410,12 @@ const ExerciseSetsList = ({
                 </Box>
                 );
             })}
+            {exerciseProgress && (
+                <Box sx={{ px: 1, py: 1.25, borderRadius: '10px', bgcolor: 'action.hover' }}>
+                    <Typography variant="caption" fontWeight={700} color="primary.main">다음 회차 제안</Typography>
+                    <Typography variant="body2" color="text.secondary">{exerciseProgress.suggestion.message}</Typography>
+                </Box>
+            )}
             <Button 
                 fullWidth 
                 startIcon={<AddIcon />} 
@@ -431,6 +439,7 @@ interface SortableExerciseItemProps {
     addSet: (exIdx: number) => void;
     toggleSetCompletion: (exIdx: number, sIdx: number) => void;
     previousExerciseRecords?: PreviousExerciseRecords;
+    exerciseProgress?: ExerciseProgress;
     theme: Theme;
 }
 
@@ -445,6 +454,7 @@ const SortableExerciseItem = React.memo(({
     addSet, 
     toggleSetCompletion,
     previousExerciseRecords,
+    exerciseProgress,
     theme
 }: SortableExerciseItemProps) => {
     const dragControls = useDragControls();
@@ -552,6 +562,7 @@ const SortableExerciseItem = React.memo(({
                         <ExerciseSetsList 
                             exerciseIndex={index} 
                             previousExerciseRecords={previousExerciseRecords}
+                            exerciseProgress={exerciseProgress}
                             openPicker={openPicker} 
                             removeSet={removeSet}
                             addSet={addSet}
@@ -566,7 +577,8 @@ const SortableExerciseItem = React.memo(({
     return prev.field.id === next.field.id && 
            prev.index === next.index && 
            prev.isExpanded === next.isExpanded &&
-           prev.previousExerciseRecords === next.previousExerciseRecords;
+           prev.previousExerciseRecords === next.previousExerciseRecords &&
+           prev.exerciseProgress === next.exerciseProgress;
 });
 
 const areArraysEqual = (left: string[], right: string[]) =>
@@ -602,6 +614,8 @@ const WorkoutLog = () => {
   const [poseAnalysisOpen, setPoseAnalysisOpen] = useState(false);
   const [lastPoseResult, setLastPoseResult] = useState<{ repCount: number; avgFormScore: number } | null>(null);
   const [previousRecordsByExerciseId, setPreviousRecordsByExerciseId] = useState<Record<number, PreviousExerciseRecords>>({});
+  const [progressByExerciseId, setProgressByExerciseId] = useState<Record<number, ExerciseProgress>>({});
+  const [successMessage, setSuccessMessage] = useState('운동 기록 완료!');
 
   useEffect(() => {
     let interval: number;
@@ -765,6 +779,29 @@ const WorkoutLog = () => {
   }, [activeExerciseIdsKey, previousRecordsByExerciseId]);
 
   useEffect(() => {
+    const missingExerciseIds = activeExerciseIds.filter((exerciseId) => progressByExerciseId[exerciseId] === undefined);
+    if (missingExerciseIds.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(missingExerciseIds.map(async (exerciseId) => [
+      exerciseId,
+      await workoutService.getExerciseProgress(exerciseId)
+    ] as const)).then((results) => {
+      if (cancelled) return;
+      setProgressByExerciseId((current) => ({
+        ...current,
+        ...Object.fromEntries(results),
+      }));
+    }).catch((error) => {
+      console.error('Failed to load exercise progress', error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeExerciseIdsKey, progressByExerciseId]);
+
+  useEffect(() => {
     if (previousSession && exercises.length > 0) {
         // 이전 세션의 운동 기록을 운동별로 그룹화
         const exerciseMap = new Map<number, { exerciseId: number; exerciseName: string; sets: Array<{ setNumber: number; reps: number; weight: number; rpe?: number }> }>();
@@ -823,6 +860,21 @@ const WorkoutLog = () => {
       };
 
       await workoutService.createSession(payload);
+      const exerciseIds = [...new Set(payload.exercisesPerformed?.map((record) => record.exerciseId) ?? [])];
+      try {
+        const progressResults = await Promise.all(exerciseIds.map((exerciseId) => workoutService.getExerciseProgress(exerciseId)));
+        setProgressByExerciseId((current) => ({
+          ...current,
+          ...Object.fromEntries(progressResults.map((progress) => [progress.exerciseId, progress])),
+        }));
+        const newRecord = progressResults.find((progress) => progress.newPersonalRecord);
+        setSuccessMessage(newRecord
+          ? `신기록! ${newRecord.exerciseName} 추정 1RM ${newRecord.bestEstimatedOneRepMax.toFixed(1)}kg`
+          : '운동 기록 완료!');
+      } catch (progressError) {
+        console.error('Failed to load workout achievements', progressError);
+        setSuccessMessage('운동 기록 완료!');
+      }
       invalidateSessions();
       clearWipSession();
       setShowSuccess(true);
@@ -1271,6 +1323,7 @@ const WorkoutLog = () => {
                         addSet={addSet}
                         toggleSetCompletion={toggleSetCompletion}
                         previousExerciseRecords={previousRecordsByExerciseId[field.exerciseId]}
+                        exerciseProgress={progressByExerciseId[field.exerciseId]}
                         theme={theme}
                     />
                 ))}
@@ -1343,7 +1396,7 @@ const WorkoutLog = () => {
         <SuccessFeedback 
           open={showSuccess} 
           onClose={() => navigate('/')} 
-          message="운동 기록 완료!"
+          message={successMessage}
         />
 
         {/* 자세 분석 다이얼로그 */}

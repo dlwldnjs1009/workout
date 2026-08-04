@@ -1,7 +1,10 @@
 package com.example.workout.service;
 
 import com.example.workout.dto.ExerciseRecordDTO;
+import com.example.workout.dto.ExerciseProgressDTO;
+import com.example.workout.dto.ExerciseProgressPointDTO;
 import com.example.workout.dto.PreviousExerciseRecordsDTO;
+import com.example.workout.dto.ProgressionSuggestionDTO;
 import com.example.workout.dto.VolumeDataPointDTO;
 import com.example.workout.dto.WorkoutDashboardDTO;
 import com.example.workout.dto.WorkoutSessionDTO;
@@ -267,6 +270,131 @@ public class WorkoutSessionService {
             : previousRecords.getFirst().getSession().getDate().toLocalDate();
 
         return new PreviousExerciseRecordsDTO(exerciseId, sessionDate, records);
+    }
+
+    /**
+     * Epley 공식(중량 × (1 + 반복수 / 30))으로 종목별 세션 추세와 다음 회차 제안을 계산한다.
+     * 계산 결과는 저장하지 않아, 과거 세트가 수정되면 항상 최신 기록을 기준으로 다시 산출된다.
+     */
+    @Transactional(readOnly = true)
+    public ExerciseProgressDTO getExerciseProgress(String username, Long exerciseId) {
+        User user = getUser(username);
+        List<ExerciseRecord> records = exerciseRecordRepository.findProgressRecordsByUserIdAndExerciseId(user.getId(), exerciseId);
+        if (records.isEmpty()) {
+            ExerciseType exercise = exerciseTypeRepository.findById(exerciseId)
+                .orElseThrow(() -> new ResourceNotFoundException("운동 종목을 찾을 수 없습니다."));
+            return new ExerciseProgressDTO(
+                exerciseId, exercise.getName(), 0.0, 0.0, 0.0, false,
+                new ProgressionSuggestionDTO("START", null, "첫 기록을 남기면 다음 운동을 추천해 드릴게요."),
+                List.of()
+            );
+        }
+
+        Map<Long, List<ExerciseRecord>> recordsBySession = records.stream()
+            .collect(Collectors.groupingBy(record -> record.getSession().getId(), LinkedHashMap::new, Collectors.toList()));
+        List<ExerciseProgressPointDTO> points = recordsBySession.values().stream()
+            .map(this::toProgressPoint)
+            .toList();
+
+        ExerciseProgressPointDTO latestPoint = points.getLast();
+        double bestEstimatedOneRepMax = points.stream()
+            .mapToDouble(ExerciseProgressPointDTO::getEstimatedOneRepMax)
+            .max()
+            .orElse(0.0);
+        double bestWeight = points.stream()
+            .mapToDouble(ExerciseProgressPointDTO::getMaxWeight)
+            .max()
+            .orElse(0.0);
+        double previousBest = points.stream()
+            .limit(Math.max(0, points.size() - 1L))
+            .mapToDouble(ExerciseProgressPointDTO::getEstimatedOneRepMax)
+            .max()
+            .orElse(0.0);
+        boolean newPersonalRecord = points.size() > 1 && latestPoint.getEstimatedOneRepMax() > previousBest;
+        ExerciseType exercise = records.getFirst().getExerciseType();
+
+        return new ExerciseProgressDTO(
+            exerciseId,
+            exercise.getName(),
+            latestPoint.getEstimatedOneRepMax(),
+            bestEstimatedOneRepMax,
+            bestWeight,
+            newPersonalRecord,
+            buildProgressionSuggestion(recordsBySession.values().stream().toList(), latestPoint),
+            points
+        );
+    }
+
+    private ExerciseProgressPointDTO toProgressPoint(List<ExerciseRecord> sessionRecords) {
+        ExerciseRecord first = sessionRecords.getFirst();
+        double estimatedOneRepMax = sessionRecords.stream()
+            .mapToDouble(this::calculateEstimatedOneRepMax)
+            .max()
+            .orElse(0.0);
+        double maxWeight = sessionRecords.stream()
+            .map(ExerciseRecord::getWeight)
+            .filter(Objects::nonNull)
+            .mapToDouble(Double::doubleValue)
+            .max()
+            .orElse(0.0);
+        double volume = sessionRecords.stream()
+            .mapToDouble(record -> (record.getWeight() != null ? record.getWeight() : 0.0) * record.getReps())
+            .sum();
+
+        return new ExerciseProgressPointDTO(
+            first.getSession().getId(),
+            first.getSession().getDate().toLocalDate(),
+            roundToOneDecimal(estimatedOneRepMax),
+            maxWeight,
+            volume
+        );
+    }
+
+    private ProgressionSuggestionDTO buildProgressionSuggestion(
+            List<List<ExerciseRecord>> recordsBySession,
+            ExerciseProgressPointDTO latestPoint) {
+        List<ExerciseRecord> latestRecords = recordsBySession.getLast();
+        boolean hasRpeForEverySet = latestRecords.stream().allMatch(record -> record.getRpe() != null);
+        if (hasRpeForEverySet && latestRecords.stream().allMatch(record -> record.getRpe() <= 8.0)
+            && latestPoint.getMaxWeight() > 0) {
+            double increment = latestPoint.getMaxWeight() >= 100 ? 5.0 : 2.5;
+            double recommendedWeight = roundToNearestHalf(latestPoint.getMaxWeight() + increment);
+            return new ProgressionSuggestionDTO(
+                "ADD_WEIGHT", recommendedWeight,
+                "모든 세트가 RPE 8 이하예요. 다음 회차는 " + recommendedWeight + "kg에 도전해 보세요."
+            );
+        }
+        if (hasRpeForEverySet && latestRecords.stream().anyMatch(record -> record.getRpe() >= 9.0)) {
+            return new ProgressionSuggestionDTO(
+                "MAINTAIN", latestPoint.getMaxWeight(),
+                "강도가 높았어요. 다음 회차도 " + latestPoint.getMaxWeight() + "kg로 반복 품질을 먼저 높여 보세요."
+            );
+        }
+        if (recordsBySession.size() == 1) {
+            return new ProgressionSuggestionDTO(
+                "START", latestPoint.getMaxWeight(),
+                "첫 기준 기록을 만들었어요. 다음 회차에도 같은 중량과 반복을 목표로 해보세요."
+            );
+        }
+        return new ProgressionSuggestionDTO(
+            "MAINTAIN", latestPoint.getMaxWeight(),
+            "다음 회차도 " + latestPoint.getMaxWeight() + "kg로 목표 반복을 안정적으로 채워 보세요."
+        );
+    }
+
+    private double calculateEstimatedOneRepMax(ExerciseRecord record) {
+        if (record.getWeight() == null || record.getWeight() <= 0 || record.getReps() == null || record.getReps() <= 0) {
+            return 0.0;
+        }
+        return record.getWeight() * (1 + record.getReps() / 30.0);
+    }
+
+    private double roundToOneDecimal(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
+    private double roundToNearestHalf(double value) {
+        return Math.round(value * 2.0) / 2.0;
     }
 
     @Transactional

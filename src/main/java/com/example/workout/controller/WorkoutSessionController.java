@@ -2,6 +2,7 @@ package com.example.workout.controller;
 
 import com.example.workout.dto.WorkoutDashboardDTO;
 import com.example.workout.dto.PreviousExerciseRecordsDTO;
+import com.example.workout.dto.ExerciseProgressDTO;
 import com.example.workout.dto.WorkoutSessionDTO;
 import com.example.workout.security.CurrentUsername;
 import com.example.workout.service.WorkoutSessionService;
@@ -48,6 +49,13 @@ public class WorkoutSessionController {
             @CurrentUsername String username,
             @PathVariable Long exerciseId) {
         return ResponseEntity.ok(sessionService.getPreviousExerciseRecords(username, exerciseId));
+    }
+
+    @GetMapping("/exercises/{exerciseId}/progress")
+    public ResponseEntity<ExerciseProgressDTO> getExerciseProgress(
+            @CurrentUsername String username,
+            @PathVariable Long exerciseId) {
+        return ResponseEntity.ok(sessionService.getExerciseProgress(username, exerciseId));
     }
 
     @GetMapping("/{id}")

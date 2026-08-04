@@ -3,6 +3,7 @@ package com.example.workout.service;
 import com.example.workout.dto.WorkoutDashboardDTO;
 import com.example.workout.dto.WorkoutSessionDTO;
 import com.example.workout.dto.PreviousExerciseRecordsDTO;
+import com.example.workout.dto.ExerciseProgressDTO;
 import com.example.workout.entity.ExerciseRecord;
 import com.example.workout.entity.ExerciseType;
 import com.example.workout.entity.User;
@@ -199,6 +200,37 @@ class WorkoutSessionServiceTest {
             assertThat(result.getSessionDate()).isEqualTo(LocalDate.of(2026, 8, 3));
             assertThat(result.getRecords()).extracting(record -> record.getSetNumber()).containsExactly(1, 2);
             assertThat(result.getRecords()).extracting(record -> record.getWeight()).containsExactly(60.0, 60.0);
+        }
+    }
+
+    @Nested
+    @DisplayName("종목별 진척도 조회")
+    class GetExerciseProgress {
+
+        @Test
+        @DisplayName("Epley 추정 1RM과 RPE 기반 증량 제안을 계산한다")
+        void shouldCalculateOneRepMaxAndWeightIncreaseSuggestion() {
+            ExerciseType exerciseType = new ExerciseType();
+            exerciseType.setId(10L);
+            exerciseType.setName("벤치 프레스");
+            WorkoutSession firstSession = createTestSession(1L, LocalDateTime.of(2026, 8, 1, 18, 0));
+            WorkoutSession latestSession = createTestSession(2L, LocalDateTime.of(2026, 8, 3, 18, 0));
+
+            when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(testUser));
+            when(exerciseRecordRepository.findProgressRecordsByUserIdAndExerciseId(testUser.getId(), 10L))
+                .thenReturn(List.of(
+                    createRecord(1L, firstSession, exerciseType, 1, 50.0, 8, 8.0),
+                    createRecord(2L, latestSession, exerciseType, 1, 55.0, 8, 8.0)
+                ));
+
+            ExerciseProgressDTO result = workoutSessionService.getExerciseProgress(TEST_USERNAME, 10L);
+
+            assertThat(result.getCurrentEstimatedOneRepMax()).isEqualTo(69.7);
+            assertThat(result.getBestEstimatedOneRepMax()).isEqualTo(69.7);
+            assertThat(result.isNewPersonalRecord()).isTrue();
+            assertThat(result.getSuggestion().getType()).isEqualTo("ADD_WEIGHT");
+            assertThat(result.getSuggestion().getRecommendedWeight()).isEqualTo(57.5);
+            assertThat(result.getPoints()).hasSize(2);
         }
     }
 

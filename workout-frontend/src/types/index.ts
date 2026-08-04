@@ -39,6 +39,31 @@ export interface PreviousExerciseRecords {
   records: ExerciseRecord[];
 }
 
+export interface ExerciseProgressPoint {
+  sessionId: number;
+  date: string;
+  estimatedOneRepMax: number;
+  maxWeight: number;
+  volume: number;
+}
+
+export interface ProgressionSuggestion {
+  type: 'ADD_WEIGHT' | 'MAINTAIN' | 'START';
+  recommendedWeight: number | null;
+  message: string;
+}
+
+export interface ExerciseProgress {
+  exerciseId: number;
+  exerciseName: string;
+  currentEstimatedOneRepMax: number;
+  bestEstimatedOneRepMax: number;
+  bestWeight: number;
+  newPersonalRecord: boolean;
+  suggestion: ProgressionSuggestion;
+  points: ExerciseProgressPoint[];
+}
+
 export interface ExerciseRecord {
   id?: number;
   exerciseId: number;
