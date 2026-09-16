@@ -13,7 +13,8 @@ import java.util.Set;
 @Entity
 @Table(name = "users", indexes = {
     @Index(name = "idx_email", columnList = "email"),
-    @Index(name = "idx_username", columnList = "username")
+    @Index(name = "idx_username", columnList = "username"),
+    @Index(name = "idx_guest_expires_at", columnList = "is_guest, expires_at")
 })
 @Getter
 @Setter
@@ -39,6 +40,13 @@ public class User {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder.Default
+    @Column(name = "is_guest", nullable = false)
+    private boolean guest = false;
+
+    /** 게스트 계정 자동 삭제 기준 시각. 일반 계정은 null. */
+    private LocalDateTime expiresAt;
 
     @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)

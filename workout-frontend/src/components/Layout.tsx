@@ -16,6 +16,7 @@ import {
   BottomNavigationAction,
   Stack,
   Divider,
+  Alert,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -319,7 +320,7 @@ const FloatingBottomNav: React.FC<FloatingBottomNavProps> = ({ scrollDirection, 
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+  const { user, isGuest, logout } = useAuthStore();
   const { mode, setMode } = useThemeStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -443,6 +444,19 @@ const Layout = () => {
       </AnimatePresence>
 
       <Container maxWidth="lg" sx={{ mt: 3, mb: 4, px: isMobile ? 2 : 3 }}>
+        {isGuest && (
+          <Alert
+            severity="info"
+            sx={{ mb: 3, borderRadius: 3 }}
+            action={
+              <Button color="inherit" size="small" onClick={() => navigate('/register')}>
+                회원가입
+              </Button>
+            }
+          >
+            체험 계정으로 둘러보는 중이에요. 여기서 만든 기록은 24시간 뒤 삭제됩니다.
+          </Alert>
+        )}
         <Outlet />
       </Container>
 

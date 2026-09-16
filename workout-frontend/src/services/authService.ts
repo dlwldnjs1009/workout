@@ -12,6 +12,12 @@ export const authService = {
     return response.data;
   },
 
+  /** 회원가입 없이 둘러볼 수 있는 임시 계정을 발급받는다. */
+  guestLogin: async (): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/guest');
+    return response.data;
+  },
+
   logout: () => {
   },
 };

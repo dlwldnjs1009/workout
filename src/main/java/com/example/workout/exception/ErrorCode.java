@@ -18,6 +18,7 @@ public enum ErrorCode {
     INVALID_TOKEN("A003", "유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED),
     TOKEN_EXPIRED("A004", "토큰이 만료되었습니다.", HttpStatus.UNAUTHORIZED),
     INVALID_CREDENTIALS("A005", "아이디 또는 비밀번호가 올바르지 않습니다.", HttpStatus.UNAUTHORIZED),
+    GUEST_RATE_LIMITED("A006", "체험 계정 발급 요청이 많습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.TOO_MANY_REQUESTS),
 
     // User
     USER_NOT_FOUND("U001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

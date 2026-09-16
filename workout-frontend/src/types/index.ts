@@ -113,6 +113,8 @@ export interface AuthResponse {
   id: number;
   username: string;
   email: string;
+  /** 체험용 임시 계정 여부 */
+  guest: boolean;
 }
 
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';

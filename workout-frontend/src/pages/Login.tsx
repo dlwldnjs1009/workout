@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { Container, Box, Typography, TextField, Button, Alert, Paper, Link, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Container, Box, Typography, TextField, Button, Alert, Paper, Link, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 
@@ -20,10 +20,39 @@ const Login = () => {
   const [error, setError] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  const onGuestLogin = async () => {
+    try {
+      setError(null);
+      setGuestLoading(true);
+      const response = await authService.guestLogin();
+      setAuth(
+        {
+          id: response.id,
+          username: response.username,
+          email: response.email,
+          createdAt: new Date().toISOString(),
+        },
+        response.token,
+        response.guest,
+      );
+      navigate('/');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      setError(
+        status === 429
+          ? '체험 계정 발급 요청이 많아요. 잠시 후 다시 시도해 주세요.'
+          : '체험 계정을 만들지 못했어요. 잠시 후 다시 시도해 주세요.',
+      );
+    } finally {
+      setGuestLoading(false);
+    }
+  };
 
   const onSubmit = async (data: LoginFormData) => {
     try {
@@ -83,10 +112,10 @@ const Login = () => {
         >
           <Box sx={{ mb: 4, textAlign: 'center' }}>
             <Typography component="h1" variant="h4" fontWeight="800" gutterBottom color="text.primary">
-              환영합니다!
+              오늘의 핏
             </Typography>
             <Typography variant="body1" color="text.secondary">
-                로그인하려면 정보를 입력해 주세요.
+              운동 기록과 식단을 한곳에서 관리하고, 추정 1RM·개인 기록으로 다음 회차 중량까지 받아보세요.
             </Typography>
           </Box>
           
@@ -138,6 +167,24 @@ const Login = () => {
             </DialogActions>
           </Dialog>
 
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            onClick={onGuestLogin}
+            disabled={guestLoading}
+            sx={{ height: 56, fontSize: '1.05rem', fontWeight: 700 }}
+          >
+            {guestLoading ? '체험 계정 만드는 중...' : '가입 없이 둘러보기'}
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}>
+            샘플 기록이 채워진 체험 계정이 바로 만들어집니다. 24시간 뒤 자동으로 삭제돼요.
+          </Typography>
+
+          <Divider sx={{ my: 3 }}>
+            <Typography variant="caption" color="text.secondary">또는</Typography>
+          </Divider>
+
           <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
@@ -171,7 +218,7 @@ const Login = () => {
             <Button
               type="submit"
               fullWidth
-              variant="contained"
+              variant="outlined"
               size="large"
               sx={{ mt: 4, mb: 3, height: 56, fontSize: '1.1rem' }}
               disabled={isSubmitting}
