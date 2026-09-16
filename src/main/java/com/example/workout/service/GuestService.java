@@ -42,6 +42,10 @@ public class GuestService {
     /**
      * 동시에 살아 있을 수 있는 게스트 계정 수의 상한. 출처 IP가 몇 개든 users 테이블 증가를
      * 직접 묶는다. TTL 정리가 계속 자리를 비우므로 실질적으로는 백스톱으로만 작동한다.
+     *
+     * <p>불변식이 아니라 soft limit이다 — 아래 검사와 저장 사이에 다른 트랜잭션이 끼어들 수
+     * 있어 동시 요청 수만큼 초과할 수 있다. 발급 속도는 nginx의 limit_req(IP당 10r/m)가
+     * 묶으므로 초과분은 한 자리 수에 머문다. 락이나 SERIALIZABLE 격리는 이 트래픽에 과잉이다.
      */
     static final int MAX_LIVE_GUESTS = 2_000;
 

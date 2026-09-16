@@ -28,3 +28,9 @@ android/app/build/
 android/.gradle/
 android/app/release.keystore
 android/local.properties
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
