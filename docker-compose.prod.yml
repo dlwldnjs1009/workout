@@ -124,6 +124,8 @@ services:
       # nginx가 443에서 쓰는 Let's Encrypt 인증서. live/ 아래가 ../../archive/ 심볼릭
       # 링크라 live만 마운트하면 깨진다.
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      # certbot webroot(http-01) 갱신용. 이게 있어야 컨테이너를 멈추지 않고 갱신된다.
+      - ./certbot-webroot:/var/www/certbot:ro
     depends_on:
       - backend
       - workout-grafana
