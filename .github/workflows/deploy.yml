@@ -170,5 +170,6 @@ jobs:
       # 헬스체크 최적화: sleep 제거, retry로 바로 폴링
       - name: 헬스체크
         run: |
-          curl -fk --retry 30 --retry-delay 2 --retry-connrefused https://todayfit.site/health || exit 1
+          # 백엔드 콜드 스타트가 60초를 넘긴 적이 있어(2026-09-16 배포) 창을 120초로 잡는다.
+          curl -fk --retry 60 --retry-delay 2 --retry-connrefused https://todayfit.site/health || exit 1
           echo "배포 성공!"

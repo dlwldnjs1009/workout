@@ -117,9 +117,13 @@ services:
     platform: linux/arm64
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/secrets:/etc/nginx/secrets
+      # nginx가 443에서 쓰는 Let's Encrypt 인증서. live/ 아래가 ../../archive/ 심볼릭
+      # 링크라 live만 마운트하면 깨진다.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
       - workout-grafana
