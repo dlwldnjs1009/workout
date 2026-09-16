@@ -213,7 +213,8 @@ public class WorkoutSessionService {
         for (int i = 0; i < 365; i++) {
             LocalDate date = startDate.plusDays(i);
             long count = countsByDate.getOrDefault(date, 0L);
-            levels[i] = count > 0 ? 3 : 0;
+            // 0회=0, 1회=1, 2회=2, 3회 이상=3. 프론트 COLOR_MAP이 4단계 농도를 쓴다.
+            levels[i] = (int) Math.min(count, 3);
         }
         List<Integer> heatmapLevels = Arrays.stream(levels).boxed().collect(Collectors.toList());
 
