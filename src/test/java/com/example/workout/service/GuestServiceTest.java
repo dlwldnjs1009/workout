@@ -1,6 +1,7 @@
 package com.example.workout.service;
 
 import com.example.workout.dto.AuthResponse;
+import com.example.workout.exception.BusinessException;
 import com.example.workout.entity.ExerciseType;
 import com.example.workout.entity.User;
 import com.example.workout.entity.WorkoutRoutine;
@@ -23,10 +24,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -129,6 +132,18 @@ class GuestServiceTest {
         assertThat(response.getToken()).isEqualTo("guest-token");
         verify(routineRepository, never()).save(any());
         verify(sessionRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("살아 있는 게스트 수가 상한에 닿으면 발급을 거부한다")
+    void shouldRejectWhenLiveGuestCapReached() {
+        when(userRepository.countByGuestTrue()).thenReturn((long) GuestService.MAX_LIVE_GUESTS);
+
+        assertThatThrownBy(() -> guestService.createGuestSession())
+            .isInstanceOf(BusinessException.class);
+
+        verify(userRepository, never()).save(any(User.class));
+        verifyNoInteractions(exerciseTypeRepository, routineRepository, sessionRepository, jwtUtil);
     }
 
     private void stubSave() {

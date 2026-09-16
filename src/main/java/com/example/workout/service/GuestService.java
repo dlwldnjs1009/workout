@@ -7,6 +7,8 @@ import com.example.workout.entity.RoutineExercise;
 import com.example.workout.entity.User;
 import com.example.workout.entity.WorkoutRoutine;
 import com.example.workout.entity.WorkoutSession;
+import com.example.workout.exception.BusinessException;
+import com.example.workout.exception.ErrorCode;
 import com.example.workout.repository.ExerciseTypeRepository;
 import com.example.workout.repository.UserRepository;
 import com.example.workout.repository.WorkoutRoutineRepository;
@@ -36,6 +38,12 @@ import java.util.UUID;
 public class GuestService {
 
     static final Duration GUEST_TTL = Duration.ofHours(24);
+
+    /**
+     * 동시에 살아 있을 수 있는 게스트 계정 수의 상한. 출처 IP가 몇 개든 users 테이블 증가를
+     * 직접 묶는다. TTL 정리가 계속 자리를 비우므로 실질적으로는 백스톱으로만 작동한다.
+     */
+    static final int MAX_LIVE_GUESTS = 2_000;
 
     private static final String USERNAME_PREFIX = "guest_";
     private static final String EMAIL_DOMAIN = "@guest.todayfit.site";
@@ -67,6 +75,10 @@ public class GuestService {
 
     @Transactional
     public AuthResponse createGuestSession() {
+        if (userRepository.countByGuestTrue() >= MAX_LIVE_GUESTS) {
+            throw new BusinessException(ErrorCode.GUEST_LIMIT_REACHED);
+        }
+
         User guest = userRepository.save(newGuestUser());
 
         List<ExerciseType> seedExercises = pickSeedExercises();
