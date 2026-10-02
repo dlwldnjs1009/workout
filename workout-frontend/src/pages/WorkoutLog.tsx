@@ -921,18 +921,16 @@ const WorkoutLog = () => {
       weight: lastSet?.weight || 0,
     };
     
-    const updatedExercises = [...getValues('exercisesPerformed')];
-    updatedExercises[exerciseIndex].sets.push(newSet);
-    setValue('exercisesPerformed', updatedExercises);
+    setValue(`exercisesPerformed.${exerciseIndex}.sets`, [...currentSets, newSet]);
     
     startRestTimer();
   }, [getValues, setValue, startRestTimer]);
 
   const removeSet = useCallback((exerciseIndex: number, setIndex: number) => {
-    const updatedExercises = [...getValues('exercisesPerformed')];
-    updatedExercises[exerciseIndex].sets.splice(setIndex, 1);
-    updatedExercises[exerciseIndex].sets.forEach((s, i) => s.setNumber = i + 1);
-    setValue('exercisesPerformed', updatedExercises);
+    const remainingSets = getValues(`exercisesPerformed.${exerciseIndex}.sets`)
+      .filter((_, i) => i !== setIndex)
+      .map((set, i) => ({ ...set, setNumber: i + 1 }));
+    setValue(`exercisesPerformed.${exerciseIndex}.sets`, remainingSets);
   }, [getValues, setValue]);
   
   const toggleSetCompletion = useCallback((exerciseIndex: number, setIndex: number) => {

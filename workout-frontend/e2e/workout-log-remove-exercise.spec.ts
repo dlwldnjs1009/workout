@@ -46,4 +46,15 @@ test.describe('운동 기록 — 종목 삭제', () => {
     await expect(page.getByRole('button', { name: `${secondName} 세트 접기`, exact: true }))
       .toHaveAttribute('aria-expanded', 'true');
   });
+  test('세트를 추가해도 펼친 종목이 접히지 않는다', async ({ page }) => {
+    const [, secondName] = await startWithTwoExercises(page);
+    await page.getByRole('button', { name: `${secondName} 세트 펼치기`, exact: true }).click();
+
+    await page.getByRole('button', { name: '세트 추가', exact: true }).click();
+
+    await expect(page.getByRole('button', { name: `${secondName} 세트 접기`, exact: true }))
+      .toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('button', { name: `${secondName} 세트 접기`, exact: true }))
+      .toContainText('2 세트');
+  });
 });
