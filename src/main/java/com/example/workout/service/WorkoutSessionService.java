@@ -188,7 +188,7 @@ public class WorkoutSessionService {
             }
             Double volume = row[1] != null ? ((Number) row[1]).doubleValue() : 0.0;
             volumeChartData.add(VolumeDataPointDTO.builder()
-                .date(date.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId)
+                .date(date.atZone(DEFAULT_ZONE).withZoneSameInstant(zoneId)
                     .format(DateTimeFormatter.ofPattern("MM.dd")))
                 .volume(volume)
                 .build());
