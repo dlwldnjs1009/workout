@@ -7,7 +7,6 @@ import org.mapstruct.Mapping;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Mapper(componentModel = "spring", uses = {ExerciseRecordMapper.class})
 public interface WorkoutSessionMapper {
@@ -16,8 +15,6 @@ public interface WorkoutSessionMapper {
     @Mapping(source = "routine.id", target = "routineId")
     @Mapping(source = "exercisesPerformed", target = "exercisesPerformed")
     WorkoutSessionDTO toDTO(WorkoutSession session);
-
-    List<WorkoutSessionDTO> toDTOList(List<WorkoutSession> sessions);
 
     @org.mapstruct.Named("toLocalDate")
     default LocalDate toLocalDate(LocalDateTime dateTime) {

@@ -20,9 +20,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
@@ -92,7 +95,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(null);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
@@ -115,7 +118,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(expectedVolume);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(10L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(5L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
@@ -143,7 +146,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(2400.0);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(3L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(3L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(volumeData);
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
@@ -262,7 +265,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(0.0);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(dateCounts);
 
@@ -285,7 +288,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(0.0);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
@@ -317,8 +320,9 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(0.0);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(3L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(3L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any(PageRequest.class)))
-                .thenReturn(sessions);
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(1L, 2L, 3L)));
+            when(sessionRepository.findByIdIn(List.of(1L, 2L, 3L))).thenReturn(Arrays.asList(session3, session1, session2));
             when(sessionMapper.toDTO(session1)).thenReturn(dto1);
             when(sessionMapper.toDTO(session2)).thenReturn(dto2);
             when(sessionMapper.toDTO(session3)).thenReturn(dto3);
@@ -327,8 +331,57 @@ class WorkoutSessionServiceTest {
 
             WorkoutDashboardDTO result = workoutSessionService.getWorkoutDashboard(TEST_USERNAME, TEST_TIMEZONE);
 
-            assertThat(result.getRecentSessions()).hasSize(3);
-            verify(sessionRepository).findRecentByUserId(eq(testUser.getId()), eq(PageRequest.of(0, 3)));
+            assertThat(result.getRecentSessions()).containsExactly(dto1, dto2, dto3);
+            verify(sessionRepository).findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), eq(PageRequest.of(0, 3)));
+        }
+    }
+
+    @Nested
+    @DisplayName("createSession 날짜 결정")
+    class CreateSessionDate {
+
+        private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
+        private LocalDateTime savedSessionDate(LocalDate inputDate) {
+            when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(testUser));
+            when(sessionRepository.save(any(WorkoutSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            WorkoutSessionDTO dto = new WorkoutSessionDTO(null, inputDate, 60, null, null, null);
+
+            workoutSessionService.createSession(TEST_USERNAME, dto);
+
+            ArgumentCaptor<WorkoutSession> captor = ArgumentCaptor.forClass(WorkoutSession.class);
+            verify(sessionRepository).save(captor.capture());
+            return captor.getValue().getDate();
+        }
+
+        @Test
+        @DisplayName("date가 null이면 현재 시각(Asia/Seoul)")
+        void shouldUseNowWhenDateIsNull() {
+            LocalDateTime before = LocalDateTime.now(SEOUL);
+
+            LocalDateTime saved = savedSessionDate(null);
+
+            assertThat(saved).isBetween(before, LocalDateTime.now(SEOUL));
+        }
+
+        @Test
+        @DisplayName("date가 오늘(Asia/Seoul)이면 현재 시각")
+        void shouldUseNowWhenDateIsToday() {
+            LocalDateTime before = LocalDateTime.now(SEOUL);
+
+            LocalDateTime saved = savedSessionDate(LocalDate.now(SEOUL));
+
+            assertThat(saved).isBetween(before, LocalDateTime.now(SEOUL));
+        }
+
+        @Test
+        @DisplayName("date가 다른 날이면 그 날 00:00")
+        void shouldUseStartOfDayWhenDateIsNotToday() {
+            LocalDate otherDay = LocalDate.now(SEOUL).minusDays(3);
+
+            LocalDateTime saved = savedSessionDate(otherDay);
+
+            assertThat(saved).isEqualTo(otherDay.atStartOfDay());
         }
     }
 
@@ -343,7 +396,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(0.0);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 
@@ -358,7 +411,7 @@ class WorkoutSessionServiceTest {
             when(sessionRepository.sumTotalVolumeByUserId(testUser.getId())).thenReturn(0.0);
             when(sessionRepository.countByUserId(testUser.getId())).thenReturn(0L);
             when(sessionRepository.countByUserIdAndDateAfter(eq(testUser.getId()), any())).thenReturn(0L);
-            when(sessionRepository.findRecentByUserId(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
+            when(sessionRepository.findIdsByUserIdOrderByDateDesc(eq(testUser.getId()), any())).thenReturn(Page.empty());
             when(sessionRepository.findRecentSessionVolumes(eq(testUser.getId()))).thenReturn(Collections.emptyList());
             when(sessionRepository.countSessionsByDate(eq(testUser.getId()), any())).thenReturn(Collections.emptyList());
 

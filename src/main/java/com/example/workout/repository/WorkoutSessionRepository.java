@@ -27,13 +27,6 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
            "WHERE s.id IN :ids")
     List<WorkoutSession> findByIdIn(@Param("ids") List<Long> ids);
 
-    // 최근 N개 세션 조회 (대시보드용)
-    // Note: @EntityGraph + Pageable 조합 불가, 별도 fetch 필요 시 서비스에서 처리
-    @Query("SELECT s FROM WorkoutSession s " +
-           "WHERE s.user.id = :userId " +
-           "ORDER BY s.date DESC")
-    List<WorkoutSession> findRecentByUserId(@Param("userId") Long userId, Pageable pageable);
-
     // 볼륨 집계
     @Query("SELECT COALESCE(SUM(r.weight * r.reps), 0) FROM WorkoutSession s JOIN s.exercisesPerformed r WHERE s.user.id = :userId")
     Double sumTotalVolumeByUserId(@Param("userId") Long userId);

@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
  * 캐시 설정 (캐시별 독립 TTL 적용)
  * - exercises: 24시간 TTL (거의 변경 없는 정적 데이터)
  * - userDetails: 10분 TTL (보안 고려)
- * - userTotalVolume: 1시간 TTL (Dashboard 성능 최적화)
  */
 @Configuration
 @EnableCaching
@@ -35,13 +34,6 @@ public class CacheConfig {
             Caffeine.newBuilder()
                 .maximumSize(500)
                 .expireAfterWrite(10, TimeUnit.MINUTES)
-                .recordStats()
-                .build());
-        
-        cacheManager.registerCustomCache("userTotalVolume", 
-            Caffeine.newBuilder()
-                .maximumSize(1000)
-                .expireAfterWrite(1, TimeUnit.HOURS)
                 .recordStats()
                 .build());
         

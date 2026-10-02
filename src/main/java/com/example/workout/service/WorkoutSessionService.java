@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -56,15 +57,9 @@ public class WorkoutSessionService {
         LocalDate inputDate = dto.getDate();
         LocalDate today = LocalDate.now(DEFAULT_ZONE);
         
-        if (inputDate != null) {
-            if (inputDate.isEqual(today)) {
-                session.setDate(LocalDateTime.now(DEFAULT_ZONE));
-            } else {
-                session.setDate(inputDate.atStartOfDay());
-            }
-        } else {
-            session.setDate(LocalDateTime.now(DEFAULT_ZONE));
-        }
+        session.setDate(inputDate == null || inputDate.isEqual(today)
+            ? LocalDateTime.now(DEFAULT_ZONE)
+            : inputDate.atStartOfDay());
 
         session.setDuration(dto.getDuration());
         session.setNotes(dto.getNotes());
@@ -158,17 +153,21 @@ public class WorkoutSessionService {
         LocalDateTime startOfMonth = LocalDateTime.now(zoneId)
             .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
-        // 통계 쿼리 (개별 쿼리 사용 - 복잡한 집계 쿼리보다 안정적)
-        // 같은 클래스 내 호출은 @Cacheable 프록시를 우회하므로 직접 호출
+        // 통계 쿼리 (개별 쿼리 사용 - 복잡한 집계 쿼리보다 안정적, 캐시 없이 매번 조회)
         Double totalVolume = sessionRepository.sumTotalVolumeByUserId(user.getId());
         if (totalVolume == null) totalVolume = 0.0;
         long totalWorkouts = sessionRepository.countByUserId(user.getId());
         long monthlyWorkouts = sessionRepository.countByUserIdAndDateAfter(user.getId(), startOfMonth);
 
-        // 최근 3개 세션
-        List<WorkoutSession> recentSessions = sessionRepository
-            .findRecentByUserId(user.getId(), PageRequest.of(0, 3));
-        List<WorkoutSessionDTO> recentSessionDTOs = recentSessions.stream()
+        // 최근 3개 세션: ID만 읽고 findByIdIn으로 fetch (N+1 방지, getUserSessions와 동일 패턴)
+        List<Long> recentIds = sessionRepository
+            .findIdsByUserIdOrderByDateDesc(user.getId(), PageRequest.of(0, 3)).getContent();
+        Map<Long, WorkoutSession> recentById = recentIds.isEmpty() ? Map.of()
+            : sessionRepository.findByIdIn(recentIds).stream()
+                .collect(Collectors.toMap(WorkoutSession::getId, Function.identity()));
+        List<WorkoutSessionDTO> recentSessionDTOs = recentIds.stream()
+            .map(recentById::get)
+            .filter(Objects::nonNull)
             .map(sessionMapper::toDTO)
             .collect(Collectors.toList());
 
@@ -209,14 +208,10 @@ public class WorkoutSessionService {
             countsByDate.put(date, count);
         }
 
-        int[] levels = new int[365];
-        for (int i = 0; i < 365; i++) {
-            LocalDate date = startDate.plusDays(i);
-            long count = countsByDate.getOrDefault(date, 0L);
-            // 0회=0, 1회=1, 2회=2, 3회 이상=3. 프론트 COLOR_MAP이 4단계 농도를 쓴다.
-            levels[i] = (int) Math.min(count, 3);
-        }
-        List<Integer> heatmapLevels = Arrays.stream(levels).boxed().collect(Collectors.toList());
+        // 0회=0, 1회=1, 2회=2, 3회 이상=3. 프론트 COLOR_MAP이 4단계 농도를 쓴다.
+        List<Integer> heatmapLevels = IntStream.range(0, 365)
+            .mapToObj(i -> (int) Math.min(countsByDate.getOrDefault(startDate.plusDays(i), 0L), 3L))
+            .toList();
 
         return WorkoutDashboardDTO.builder()
             .totalVolume(totalVolume)
