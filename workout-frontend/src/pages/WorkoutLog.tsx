@@ -973,6 +973,11 @@ const WorkoutLog = () => {
 
   useEffect(() => {
       const currentIds = fields.map(field => field.id);
+      // 종목 추가·삭제 직후 exerciseOrder는 아직 이전 목록이다. 그대로 move하면 범위 밖 index가 나와
+      // RHF가 빈칸을 undefined로 채운다. 위 effect가 순서를 맞춘 뒤 다시 실행될 때 처리한다.
+      if (exerciseOrder.length !== currentIds.length || !exerciseOrder.every(id => currentIds.includes(id))) {
+          return;
+      }
       if (areArraysEqual(currentIds, exerciseOrder)) {
           return;
       }
