@@ -432,8 +432,6 @@ interface SortableExerciseItemProps {
     field: FieldArrayWithId<WorkoutSessionFormData, 'exercisesPerformed', 'id'>;
     index: number;
     remove: (index: number) => void;
-    toggleExpand: (index: number) => void;
-    isExpanded: boolean;
     openPicker: (exIdx: number, sIdx: number, type: 'reps' | 'weight' | 'rpe') => void;
     removeSet: (exIdx: number, sIdx: number) => void;
     addSet: (exIdx: number) => void;
@@ -446,10 +444,8 @@ interface SortableExerciseItemProps {
 const SortableExerciseItem = React.memo(({
     field, 
     index, 
-    remove, 
-    toggleExpand, 
-    isExpanded, 
-    openPicker, 
+    remove,
+    openPicker,
     removeSet, 
     addSet, 
     toggleSetCompletion,
@@ -458,6 +454,7 @@ const SortableExerciseItem = React.memo(({
     theme
 }: SortableExerciseItemProps) => {
     const dragControls = useDragControls();
+    const [isExpanded, setIsExpanded] = useState(false);
     const exerciseName = field.exerciseName;
 
     return (
@@ -523,7 +520,7 @@ const SortableExerciseItem = React.memo(({
                          <ButtonBase
                             component="button"
                             type="button"
-                            onClick={() => toggleExpand(index)}
+                            onClick={() => setIsExpanded(prev => !prev)}
                             aria-expanded={isExpanded}
                             aria-label={`${exerciseName} 세트 ${isExpanded ? '접기' : '펼치기'}`}
                             sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'inherit', textAlign: 'left', borderRadius: '12px', '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}
@@ -575,8 +572,7 @@ const SortableExerciseItem = React.memo(({
     );
 }, (prev, next) => {
     return prev.field.id === next.field.id && 
-           prev.index === next.index && 
-           prev.isExpanded === next.isExpanded &&
+           prev.index === next.index &&
            prev.previousExerciseRecords === next.previousExerciseRecords &&
            prev.exerciseProgress === next.exerciseProgress;
 });
@@ -603,7 +599,6 @@ const WorkoutLog = () => {
       updateRestTimer, restTimerDuration, setRestTimerDuration
   } = useWorkoutSessionStore();
 
-  const [expandedExercises, setExpandedExercises] = useState<Record<number, boolean>>({});
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [activePicker, setActivePicker] = useState<{ exerciseIndex: number, setIndex: number, type: 'reps' | 'weight' | 'rpe' } | null>(null);
@@ -884,13 +879,6 @@ const WorkoutLog = () => {
     }
   };
 
-  const toggleExpand = useCallback((index: number) => {
-    setExpandedExercises(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
-  }, []);
-
   const toggleExerciseSelection = (exerciseId: number) => {
     setSelectedExerciseIds(prev => {
       const newSet = new Set(prev);
@@ -991,15 +979,6 @@ const WorkoutLog = () => {
           nextIds.splice(toIndex, 0, nextIds.splice(fromIndex, 1)[0]);
       });
   }, [exerciseOrder, fields, move]);
-
-  const handleRemove = useCallback((index: number) => {
-      remove(index);
-      setExpandedExercises(prev => {
-          const newState = { ...prev };
-          delete newState[index];
-          return newState;
-      });
-  }, [remove]);
 
   const handlePoseSessionComplete = useCallback((data: { repCount: number; avgFormScore: number }) => {
       setLastPoseResult(data);
@@ -1320,9 +1299,7 @@ const WorkoutLog = () => {
                         key={field.id}
                         field={field}
                         index={exIdx}
-                        remove={handleRemove}
-                        toggleExpand={toggleExpand}
-                        isExpanded={expandedExercises[exIdx]}
+                        remove={remove}
                         openPicker={openPicker}
                         removeSet={removeSet}
                         addSet={addSet}
