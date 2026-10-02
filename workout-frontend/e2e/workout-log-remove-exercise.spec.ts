@@ -46,6 +46,7 @@ test.describe('운동 기록 — 종목 삭제', () => {
     await expect(page.getByRole('button', { name: `${secondName} 세트 접기`, exact: true }))
       .toHaveAttribute('aria-expanded', 'true');
   });
+
   test('세트를 추가해도 펼친 종목이 접히지 않는다', async ({ page }) => {
     const [, secondName] = await startWithTwoExercises(page);
     await page.getByRole('button', { name: `${secondName} 세트 펼치기`, exact: true }).click();
@@ -56,5 +57,24 @@ test.describe('운동 기록 — 종목 삭제', () => {
       .toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByRole('button', { name: `${secondName} 세트 접기`, exact: true }))
       .toContainText('2 세트');
+  });
+
+  test('종목 순서를 드래그로 바꿀 수 있다', async ({ page }) => {
+    const [firstName, secondName] = await startWithTwoExercises(page);
+    const handle = page.getByLabel(`${secondName} 순서 변경`, { exact: true });
+    const target = page.getByLabel(`${firstName} 순서 변경`, { exact: true });
+    // 종목 추가 뒤 smooth 스크롤이 끝나야 좌표가 맞는다
+    await handle.hover();
+    const from = (await handle.boundingBox())!;
+    const to = (await target.boundingBox())!;
+
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 - 10, { steps: 5 });
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 - 20, { steps: 20 });
+    await page.mouse.up();
+
+    await expect(page.getByRole('button', { name: /삭제$/ }).first()).toHaveAccessibleName(`${secondName} 삭제`);
+    await expect(page.getByRole('button', { name: /삭제$/ }).nth(1)).toHaveAccessibleName(`${firstName} 삭제`);
   });
 });

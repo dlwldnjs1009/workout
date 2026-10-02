@@ -497,6 +497,7 @@ const SortableExerciseItem = React.memo(({
                     sx={{ p: 2, display: 'flex', alignItems: 'center' }}
                 >
                      <Box 
+                        aria-label={`${exerciseName} 순서 변경`}
                         onPointerDown={(e) => {
                             e.stopPropagation();
                             dragControls.start(e);
@@ -576,9 +577,6 @@ const SortableExerciseItem = React.memo(({
            prev.previousExerciseRecords === next.previousExerciseRecords &&
            prev.exerciseProgress === next.exerciseProgress;
 });
-
-const areArraysEqual = (left: string[], right: string[]) =>
-    left.length === right.length && left.every((value, index) => value === right[index]);
 
 const WorkoutLog = () => {
   const navigate = useNavigate();
@@ -663,7 +661,6 @@ const WorkoutLog = () => {
   });
 
   const { control, register, handleSubmit, setValue, watch, getValues, formState: { isSubmitting } } = methods;
-  const activeExercises = useWatch({ control, name: 'exercisesPerformed' });
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearAutosaveTimer = useCallback(() => {
@@ -691,20 +688,6 @@ const WorkoutLog = () => {
     control, 
     name: "exercisesPerformed"
   });
-
-  const [exerciseOrder, setExerciseOrder] = useState<string[]>(() =>
-      fields.map(field => field.id)
-  );
-
-  useEffect(() => {
-      const fieldIds = fields.map(field => field.id);
-      setExerciseOrder(prev => {
-          const next = prev.filter(id => fieldIds.includes(id));
-          const missing = fieldIds.filter(id => !next.includes(id));
-          const merged = [...next, ...missing];
-          return areArraysEqual(merged, prev) ? prev : merged;
-      });
-  }, [fields]);
 
   useEffect(() => {
     fetchExercises().catch((error) => {
@@ -742,8 +725,8 @@ const WorkoutLog = () => {
   }, [routineToStart, exercises, setValue]);
 
   const activeExerciseIds = useMemo(() => (
-    [...new Set((activeExercises ?? []).map((exercise) => exercise.exerciseId))]
-  ), [activeExercises]);
+    [...new Set(fields.map((field) => field.exerciseId))]
+  ), [fields]);
   const activeExerciseIdsKey = activeExerciseIds.join(',');
 
   const routineRestSecondsByExerciseId = useMemo(() => Object.fromEntries(
@@ -953,30 +936,13 @@ const WorkoutLog = () => {
     setPickerOpen(true);
   }, []);
   
-  const onReorderExercises = useCallback((newOrder: string[]) => {
-      setExerciseOrder(newOrder);
-  }, []);
-
-  useEffect(() => {
-      const currentIds = fields.map(field => field.id);
-      // 종목 추가·삭제 직후 exerciseOrder는 아직 이전 목록이다. 그대로 move하면 범위 밖 index가 나와
-      // RHF가 빈칸을 undefined로 채운다. 위 effect가 순서를 맞춘 뒤 다시 실행될 때 처리한다.
-      if (exerciseOrder.length !== currentIds.length || !exerciseOrder.every(id => currentIds.includes(id))) {
+  const onReorder = useCallback((newOrder: string[]) => {
+      const from = newOrder.findIndex((id, i) => id !== fields[i]?.id);
+      if (from === -1) {
           return;
       }
-      if (areArraysEqual(currentIds, exerciseOrder)) {
-          return;
-      }
-      const nextIds = [...currentIds];
-      exerciseOrder.forEach((id, toIndex) => {
-          const fromIndex = nextIds.indexOf(id);
-          if (fromIndex === -1 || fromIndex === toIndex) {
-              return;
-          }
-          move(fromIndex, toIndex);
-          nextIds.splice(toIndex, 0, nextIds.splice(fromIndex, 1)[0]);
-      });
-  }, [exerciseOrder, fields, move]);
+      move(fields.findIndex(field => field.id === newOrder[from]), from);
+  }, [fields, move]);
 
   const handlePoseSessionComplete = useCallback((data: { repCount: number; avgFormScore: number }) => {
       setLastPoseResult(data);
@@ -1291,7 +1257,7 @@ const WorkoutLog = () => {
               <Typography variant="h6" fontWeight="800" sx={{ color: 'text.primary' }}>진행 중인 운동 ({fields.length})</Typography>
             </Box>
             
-            <Reorder.Group axis="y" values={exerciseOrder} onReorder={onReorderExercises} style={{ listStyle: 'none', padding: 0 }}>
+            <Reorder.Group axis="y" values={fields.map(field => field.id)} onReorder={onReorder} style={{ listStyle: 'none', padding: 0 }}>
                 {fields.map((field, exIdx) => (
                     <SortableExerciseItem 
                         key={field.id}
