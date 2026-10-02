@@ -33,6 +33,7 @@ import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
 import CheckIcon from '@mui/icons-material/Check';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore, type ThemeMode } from '../store/themeStore';
 import { useScrollDirection } from '../hooks/useScrollDirection';
@@ -457,7 +458,18 @@ const Layout = () => {
             체험 계정으로 둘러보는 중이에요. 여기서 만든 기록은 24시간 뒤 삭제됩니다.
           </Alert>
         )}
-        <Outlet />
+        {/* 페이지 렌더 에러가 앱 전체를 내리지 않게 막는다. 경로가 바뀌면 key로 다시 시도한다. */}
+        <Sentry.ErrorBoundary
+          key={location.pathname}
+          fallback={
+            <Box sx={{ py: 8, textAlign: 'center' }}>
+              <Typography fontWeight={700} sx={{ mb: 2 }}>화면을 불러오지 못했어요.</Typography>
+              <Button variant="contained" onClick={() => window.location.reload()}>새로고침</Button>
+            </Box>
+          }
+        >
+          <Outlet />
+        </Sentry.ErrorBoundary>
       </Container>
 
       {/* Floating Dock Navigation */}
